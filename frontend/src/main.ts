@@ -1,34 +1,34 @@
-import { createApp } from 'vue'
-import { createRouter, createWebHistory } from 'vue-router'
-import './index.css'
-import App from './App.vue'
-import ControlPanel from './views/ControlPanel.vue'
-import ShowSource from './views/ShowSource.vue'
-import KeyManagement from './views/KeyManagement.vue'
+import { createApp } from "vue";
+import { createRouter, createWebHistory } from "vue-router";
+import "./index.css";
+import App from "./App.vue";
+import ControlPanel from "./views/ControlPanel.vue";
+import ShowSource from "./views/ShowSource.vue";
+import KeyManagement from "./views/KeyManagement.vue";
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
     {
-      path: '/',
-      redirect: '/control-panel'
+      path: "/",
+      redirect: "/control-panel",
     },
     {
-      path: '/control-panel',
-      name: 'control-panel',
-      component: ControlPanel
+      path: "/control-panel",
+      name: "control-panel",
+      component: ControlPanel,
     },
     {
-      path: '/control-panel/keys',
-      name: 'key-management',
-      component: KeyManagement
+      path: "/control-panel/keys",
+      name: "key-management",
+      component: KeyManagement,
     },
     {
-      path: '/show-source',
-      name: 'show-source',
-      component: ShowSource
-    }
-  ]
-})
+      path: "/show-source",
+      name: "show-source",
+      component: ShowSource,
+    },
+  ],
+});
 
-createApp(App).use(router).mount('#app')
+createApp(App).use(router).mount("#app");

@@ -1,204 +1,235 @@
-import type { Key, KeyType, ProgramData, SongData, LyricData } from '../types'
+import type { Key, KeyType, ProgramData, SongData, LyricData } from "../types";
 
-const API_BASE = '/api'
+const API_BASE = "/api";
 
 export const api = {
   // Keys management
   async getKeys(): Promise<Key[]> {
-    const response = await fetch(`${API_BASE}/keys`)
+    const response = await fetch(`${API_BASE}/keys`);
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
-    return response.json()
+    return response.json();
   },
 
-  async createKey(name: string, keyType: KeyType, transitionTime: number = 1.0): Promise<Key> {
+  async createKey(
+    name: string,
+    keyType: KeyType,
+    transitionTime: number = 1.0,
+  ): Promise<Key> {
     const response = await fetch(`${API_BASE}/keys`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify({ name, key_type: keyType, transition_time: transitionTime }),
-    })
+      body: JSON.stringify({
+        name,
+        key_type: keyType,
+        transition_time: transitionTime,
+      }),
+    });
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
-    return response.json()
+    return response.json();
   },
 
-  async updateKey(id: number, data: Partial<Key> & { version: number }): Promise<{status: string, version: number}> {
+  async updateKey(
+    id: number,
+    data: Partial<Key> & { version: number },
+  ): Promise<{ status: string; version: number }> {
     const response = await fetch(`${API_BASE}/keys/${id}`, {
-      method: 'PATCH',
+      method: "PATCH",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify(data),
-    })
+    });
     if (!response.ok) {
       if (response.status === 409) {
-        throw new Error('版本冲突：数据已被其他客户端修改，请刷新后重试')
+        throw new Error("版本冲突：数据已被其他客户端修改，请刷新后重试");
       }
-      throw new Error(`HTTP error! status: ${response.status}`)
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
-    return response.json()
+    return response.json();
   },
 
   async deleteKey(id: number): Promise<void> {
     const response = await fetch(`${API_BASE}/keys/${id}`, {
-      method: 'DELETE',
-    })
+      method: "DELETE",
+    });
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
   },
 
   async reorderKeys(ids: number[]): Promise<void> {
     const response = await fetch(`${API_BASE}/keys/reorder`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({ ids }),
-    })
+    });
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
   },
 
   // Programs management
-  async createProgram(keyId: number, data: Omit<ProgramData, 'id' | 'position'>): Promise<ProgramData> {
+  async createProgram(
+    keyId: number,
+    data: Omit<ProgramData, "id" | "position">,
+  ): Promise<ProgramData> {
     const response = await fetch(`${API_BASE}/programs`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({ key_id: keyId, ...data }),
-    })
+    });
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
-    return response.json()
+    return response.json();
   },
 
-  async updateProgram(id: number, data: Partial<Omit<ProgramData, 'id' | 'position'>>): Promise<void> {
+  async updateProgram(
+    id: number,
+    data: Partial<Omit<ProgramData, "id" | "position">>,
+  ): Promise<void> {
     const response = await fetch(`${API_BASE}/programs/${id}`, {
-      method: 'PATCH',
+      method: "PATCH",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify(data),
-    })
+    });
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
   },
 
   async deleteProgram(id: number): Promise<void> {
     const response = await fetch(`${API_BASE}/programs/${id}`, {
-      method: 'DELETE',
-    })
+      method: "DELETE",
+    });
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
   },
 
   // Songs management
   async createSong(keyId: number, name: string): Promise<SongData> {
     const response = await fetch(`${API_BASE}/songs`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({ key_id: keyId, name }),
-    })
+    });
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
-    return response.json()
+    return response.json();
   },
 
-  async updateSong(id: number, data: Partial<Omit<SongData, 'id' | 'position' | 'lyrics'>>): Promise<void> {
+  async updateSong(
+    id: number,
+    data: Partial<Omit<SongData, "id" | "position" | "lyrics">>,
+  ): Promise<void> {
     const response = await fetch(`${API_BASE}/songs/${id}`, {
-      method: 'PATCH',
+      method: "PATCH",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify(data),
-    })
+    });
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
   },
 
   async deleteSong(id: number): Promise<void> {
     const response = await fetch(`${API_BASE}/songs/${id}`, {
-      method: 'DELETE',
-    })
+      method: "DELETE",
+    });
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
   },
 
   // Lyrics management
-  async createLyric(songId: number, text: string, transitionTime: number = 1.0): Promise<LyricData> {
+  async createLyric(
+    songId: number,
+    text: string,
+    transitionTime: number = 1.0,
+  ): Promise<LyricData> {
     const response = await fetch(`${API_BASE}/lyrics`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify({ song_id: songId, text, transition_time: transitionTime }),
-    })
+      body: JSON.stringify({
+        song_id: songId,
+        text,
+        transition_time: transitionTime,
+      }),
+    });
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
-    return response.json()
+    return response.json();
   },
 
-  async updateLyric(id: number, data: Partial<Omit<LyricData, 'id' | 'position'>>): Promise<void> {
+  async updateLyric(
+    id: number,
+    data: Partial<Omit<LyricData, "id" | "position">>,
+  ): Promise<void> {
     const response = await fetch(`${API_BASE}/lyrics/${id}`, {
-      method: 'PATCH',
+      method: "PATCH",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify(data),
-    })
+    });
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
   },
 
   async deleteLyric(id: number): Promise<void> {
     const response = await fetch(`${API_BASE}/lyrics/${id}`, {
-      method: 'DELETE',
-    })
+      method: "DELETE",
+    });
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
   },
-}
+};
 
 export function createWebSocket(onMessage: (data: Key[]) => void): WebSocket {
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  const wsUrl = `${protocol}//${window.location.host}/ws`
-  
-  const ws = new WebSocket(wsUrl)
-  
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  const wsUrl = `${protocol}//${window.location.host}/ws`;
+
+  const ws = new WebSocket(wsUrl);
+
   ws.onopen = () => {
-    console.log('WebSocket connected')
-  }
-  
+    console.log("WebSocket connected");
+  };
+
   ws.onmessage = (event) => {
     try {
-      const data: Key[] = JSON.parse(event.data)
-      onMessage(data)
+      const data: Key[] = JSON.parse(event.data);
+      onMessage(data);
     } catch (err) {
-      console.error('Failed to parse WebSocket message:', err)
+      console.error("Failed to parse WebSocket message:", err);
     }
-  }
-  
+  };
+
   ws.onerror = (error) => {
-    console.error('WebSocket error:', error)
-  }
-  
-  return ws
+    console.error("WebSocket error:", error);
+  };
+
+  return ws;
 }

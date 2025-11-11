@@ -4,18 +4,27 @@
     <div class="container mx-auto max-w-6xl">
       <div class="flex items-center justify-between mb-6">
         <h1 class="text-3xl font-bold">Key 管理</h1>
-        <router-link to="/control-panel" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md">
+        <router-link
+          to="/control-panel"
+          class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md"
+        >
           返回控制面板
         </router-link>
       </div>
 
       <!-- Error message -->
-      <div v-if="error" class="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-md">
+      <div
+        v-if="error"
+        class="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-md"
+      >
         {{ error }}
       </div>
 
       <!-- Success message -->
-      <div v-if="successMessage" class="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded-md">
+      <div
+        v-if="successMessage"
+        class="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded-md"
+      >
         {{ successMessage }}
       </div>
 
@@ -54,14 +63,13 @@
               <div>
                 <h3 class="text-lg font-bold">{{ key.name }}</h3>
                 <p class="text-sm text-gray-600">
-                  类型: {{ key.key_type === 'program' ? '节目信息' : '歌词' }} | 
-                  位置: {{ key.position }} | 
-                  状态: {{ key.status }} | 
-                  版本: {{ key.version }}
+                  类型: {{ key.key_type === "program" ? "节目信息" : "歌词" }} |
+                  位置: {{ key.position }} | 状态: {{ key.status }} | 版本:
+                  {{ key.version }}
                 </p>
               </div>
             </div>
-            
+
             <div class="flex gap-2">
               <Button
                 size="sm"
@@ -125,7 +133,7 @@
     >
       <div class="bg-white p-6 rounded-lg max-w-md w-full">
         <h2 class="text-2xl font-bold mb-4">编辑 Key</h2>
-        
+
         <div class="space-y-4">
           <div>
             <label class="block text-sm font-medium mb-1">名称</label>
@@ -160,8 +168,12 @@
         </div>
 
         <div class="flex gap-2 mt-6">
-          <Button @click="cancelEdit" variant="outline" class="flex-1">取消</Button>
-          <Button @click="saveEdit" class="flex-1" :disabled="!editForm.name">保存</Button>
+          <Button @click="cancelEdit" variant="outline" class="flex-1"
+            >取消</Button
+          >
+          <Button @click="saveEdit" class="flex-1" :disabled="!editForm.name"
+            >保存</Button
+          >
         </div>
       </div>
     </div>
@@ -174,10 +186,17 @@
     >
       <div class="bg-white p-6 rounded-lg max-w-md w-full">
         <h2 class="text-2xl font-bold mb-4">确认删除</h2>
-        <p class="mb-6">确定要删除 Key "{{ deletingKey.name }}" 吗？此操作将同时删除相关的所有数据，且无法撤销。</p>
+        <p class="mb-6">
+          确定要删除 Key "{{ deletingKey.name }}"
+          吗？此操作将同时删除相关的所有数据，且无法撤销。
+        </p>
         <div class="flex gap-2">
-          <Button @click="cancelDelete" variant="outline" class="flex-1">取消</Button>
-          <Button @click="executeDelete" variant="destructive" class="flex-1">删除</Button>
+          <Button @click="cancelDelete" variant="outline" class="flex-1"
+            >取消</Button
+          >
+          <Button @click="executeDelete" variant="destructive" class="flex-1"
+            >删除</Button
+          >
         </div>
       </div>
     </div>
@@ -185,169 +204,175 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { api } from '@/api'
-import type { Key, KeyType } from '@/types'
-import Button from '@/components/ui/Button.vue'
+import { ref, onMounted } from "vue";
+import { api } from "@/api";
+import type { Key, KeyType } from "@/types";
+import Button from "@/components/ui/Button.vue";
 
-const keys = ref<Key[]>([])
-const loading = ref(false)
-const error = ref('')
-const successMessage = ref('')
+const keys = ref<Key[]>([]);
+const loading = ref(false);
+const error = ref("");
+const successMessage = ref("");
 
 // Create new key
-const newKeyName = ref('')
-const newKeyType = ref<KeyType>('program')
+const newKeyName = ref("");
+const newKeyType = ref<KeyType>("program");
 
 // Edit key
-const editingKey = ref<Key | null>(null)
+const editingKey = ref<Key | null>(null);
 const editForm = ref({
-  name: '',
-  key_type: 'program' as KeyType,
+  name: "",
+  key_type: "program" as KeyType,
   transition_time: 1.0,
   version: 0,
-})
+});
 
 // Delete key
-const deletingKey = ref<Key | null>(null)
+const deletingKey = ref<Key | null>(null);
 
 async function loadKeys() {
   try {
-    error.value = ''
-    keys.value = await api.getKeys()
+    error.value = "";
+    keys.value = await api.getKeys();
   } catch (err) {
-    error.value = `加载失败: ${err}`
-    console.error('Failed to load keys:', err)
+    error.value = `加载失败: ${err}`;
+    console.error("Failed to load keys:", err);
   }
 }
 
 async function createKey() {
-  if (!newKeyName.value) return
-  
-  loading.value = true
-  error.value = ''
-  successMessage.value = ''
-  
+  if (!newKeyName.value) return;
+
+  loading.value = true;
+  error.value = "";
+  successMessage.value = "";
+
   try {
-    await api.createKey(newKeyName.value, newKeyType.value)
-    successMessage.value = `Key "${newKeyName.value}" 创建成功`
-    newKeyName.value = ''
-    await loadKeys()
+    await api.createKey(newKeyName.value, newKeyType.value);
+    successMessage.value = `Key "${newKeyName.value}" 创建成功`;
+    newKeyName.value = "";
+    await loadKeys();
   } catch (err) {
-    error.value = `创建失败: ${err}`
-    console.error('Failed to create key:', err)
+    error.value = `创建失败: ${err}`;
+    console.error("Failed to create key:", err);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
 function startEdit(key: Key) {
-  editingKey.value = key
+  editingKey.value = key;
   editForm.value = {
     name: key.name,
     key_type: key.key_type,
     transition_time: key.transition_time,
     version: key.version,
-  }
+  };
 }
 
 function cancelEdit() {
-  editingKey.value = null
+  editingKey.value = null;
 }
 
 async function saveEdit() {
-  if (!editingKey.value) return
-  
-  loading.value = true
-  error.value = ''
-  successMessage.value = ''
-  
+  if (!editingKey.value) return;
+
+  loading.value = true;
+  error.value = "";
+  successMessage.value = "";
+
   try {
-    await api.updateKey(editingKey.value.id, editForm.value)
-    successMessage.value = `Key "${editForm.value.name}" 更新成功`
-    editingKey.value = null
-    await loadKeys()
+    await api.updateKey(editingKey.value.id, editForm.value);
+    successMessage.value = `Key "${editForm.value.name}" 更新成功`;
+    editingKey.value = null;
+    await loadKeys();
   } catch (err) {
-    error.value = `更新失败: ${err}`
-    console.error('Failed to update key:', err)
+    error.value = `更新失败: ${err}`;
+    console.error("Failed to update key:", err);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
 function confirmDelete(key: Key) {
-  deletingKey.value = key
+  deletingKey.value = key;
 }
 
 function cancelDelete() {
-  deletingKey.value = null
+  deletingKey.value = null;
 }
 
 async function executeDelete() {
-  if (!deletingKey.value) return
-  
-  loading.value = true
-  error.value = ''
-  successMessage.value = ''
-  
-  const keyName = deletingKey.value.name
-  
+  if (!deletingKey.value) return;
+
+  loading.value = true;
+  error.value = "";
+  successMessage.value = "";
+
+  const keyName = deletingKey.value.name;
+
   try {
-    await api.deleteKey(deletingKey.value.id)
-    successMessage.value = `Key "${keyName}" 已删除`
-    deletingKey.value = null
-    await loadKeys()
+    await api.deleteKey(deletingKey.value.id);
+    successMessage.value = `Key "${keyName}" 已删除`;
+    deletingKey.value = null;
+    await loadKeys();
   } catch (err) {
-    error.value = `删除失败: ${err}`
-    console.error('Failed to delete key:', err)
+    error.value = `删除失败: ${err}`;
+    console.error("Failed to delete key:", err);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
 async function moveUp(index: number) {
-  if (index === 0) return
-  
-  loading.value = true
-  error.value = ''
-  
+  if (index === 0) return;
+
+  loading.value = true;
+  error.value = "";
+
   try {
-    const newOrder = [...keys.value]
-    ;[newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]]
-    
-    const ids = newOrder.map(k => k.id)
-    await api.reorderKeys(ids)
-    await loadKeys()
+    const newOrder = [...keys.value];
+    [newOrder[index - 1], newOrder[index]] = [
+      newOrder[index],
+      newOrder[index - 1],
+    ];
+
+    const ids = newOrder.map((k) => k.id);
+    await api.reorderKeys(ids);
+    await loadKeys();
   } catch (err) {
-    error.value = `移动失败: ${err}`
-    console.error('Failed to reorder keys:', err)
+    error.value = `移动失败: ${err}`;
+    console.error("Failed to reorder keys:", err);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
 async function moveDown(index: number) {
-  if (index === keys.value.length - 1) return
-  
-  loading.value = true
-  error.value = ''
-  
+  if (index === keys.value.length - 1) return;
+
+  loading.value = true;
+  error.value = "";
+
   try {
-    const newOrder = [...keys.value]
-    ;[newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]]
-    
-    const ids = newOrder.map(k => k.id)
-    await api.reorderKeys(ids)
-    await loadKeys()
+    const newOrder = [...keys.value];
+    [newOrder[index], newOrder[index + 1]] = [
+      newOrder[index + 1],
+      newOrder[index],
+    ];
+
+    const ids = newOrder.map((k) => k.id);
+    await api.reorderKeys(ids);
+    await loadKeys();
   } catch (err) {
-    error.value = `移动失败: ${err}`
-    console.error('Failed to reorder keys:', err)
+    error.value = `移动失败: ${err}`;
+    console.error("Failed to reorder keys:", err);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
 onMounted(() => {
-  loadKeys()
-})
+  loadKeys();
+});
 </script>
