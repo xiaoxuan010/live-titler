@@ -10,9 +10,9 @@ This repository was transferred from `xiaoxuan010/HFLive-BMT` to `HFLive/live-ti
 
 这是一套可用于OBS的标题Web页面，可以实现基本的文字显示和动画。
 
-本项目已重构为浏览器/服务器架构：
+本项目已重构为现代化浏览器/服务器架构：
 - **后端**: Go语言实现的HTTP服务器，使用SQLite3数据库
-- **前端**: 保留原有的HTML/CSS/JavaScript前端页面
+- **前端**: Vue 3 + Vite + shadcn/ui 现代化前端框架
 - **通信**: REST API + WebSocket实时推送
 - **部署**: 单一可执行文件，包含所有静态资源
 
@@ -23,19 +23,19 @@ This repository was transferred from `xiaoxuan010/HFLive-BMT` to `HFLive/live-ti
 1. 下载或构建 `live-titler.exe`
 2. 双击运行 `live-titler.exe`
 3. 浏览器访问：
-   - 控制面板: http://localhost:3001/control-pannel.html
-   - 显示面板: http://localhost:3001/show-source.html
+   - 控制面板: http://localhost:3001/control-panel
+   - 显示面板: http://localhost:3001/show-source
 
 ### 在OBS中使用
 
 1. **添加自定义浏览器停靠窗口** (控制面板)
    - 打开OBS，左上角 视图 > 停靠部件 > 自定义浏览器停靠窗口
    - Dock名填写"Live Titler - 控制面板"
-   - URL填写: `http://localhost:3001/control-pannel.html`
+   - URL填写: `http://localhost:3001/control-panel`
 
 2. **添加浏览器源** (显示面板)
    - 在场景中添加"浏览器"源
-   - URL填写: `http://localhost:3001/show-source.html`
+   - URL填写: `http://localhost:3001/show-source`
    - 宽度: 1920, 高度: 1080
    - 取消勾选"本地文件"
 
@@ -43,7 +43,7 @@ This repository was transferred from `xiaoxuan010/HFLive-BMT` to `HFLive/live-ti
 
 如果需要在局域网内其他设备访问：
 - 查看服务器IP地址（例如：192.168.1.100）
-- 在其他设备访问: `http://192.168.1.100:3001/control-pannel.html`
+- 在其他设备访问: `http://192.168.1.100:3001/control-panel`
 
 ## 功能特性
 
@@ -79,23 +79,33 @@ This repository was transferred from `xiaoxuan010/HFLive-BMT` to `HFLive/live-ti
 
 ### 前置要求
 - Go 1.20 或更高版本
+- Node.js 18+ 和 pnpm
 - Git
 
 ### 从源代码构建
 
-1. **克隆仓库并拉取子模块**
+1. **克隆仓库**
 ```bash
 git clone https://github.com/xiaoxuan010/live-titler.git
 cd live-titler
-git submodule update --init --recursive
 ```
 
-2. **下载依赖**
+2. **构建前端**
+```bash
+cd frontend
+pnpm install
+pnpm build
+cd ..
+```
+
+3. **下载Go依赖**
 ```bash
 go mod tidy
 ```
 
-3. **构建Windows可执行文件**
+4. **构建可执行文件**
+
+Windows:
 ```bash
 go build -o live-titler.exe main.go
 ```
@@ -105,14 +115,40 @@ go build -o live-titler.exe main.go
 build-windows.bat
 ```
 
-### 运行开发服务器
+Linux/Mac:
+```bash
+./build.sh
+```
+
+### 前端开发
+
+在开发模式下运行前端（带热重载）：
+
+```bash
+cd frontend
+pnpm dev
+```
+
+前端开发服务器会运行在 http://localhost:5173，并自动代理API请求到后端（需要后端同时运行）。
+
+### 后端开发
+
+运行开发服务器：
 ```bash
 go run main.go
 ```
 
 ### 技术栈
-- **后端**: Go + gorilla/mux + gorilla/websocket + GORM + SQLite3
-- **前端**: HTML5 + CSS3 + JavaScript + MDUI + Fetch API + WebSocket
+
+**后端:**
+- Go + gorilla/mux + gorilla/websocket + GORM + SQLite3
+
+**前端:**
+- Vue 3 + Vite
+- shadcn/ui (Radix Vue) + Tailwind CSS
+- TypeScript
+- vue-router
+- lyrics.js
 
 ### 目录结构
 ```
@@ -120,12 +156,15 @@ live-titler/
 ├── main.go              # Go服务器主程序
 ├── go.mod               # Go模块定义
 ├── live-titler.db       # SQLite数据库（运行时生成）
-├── control-pannel.html  # 控制面板
-├── show-source.html     # 显示面板
-├── bmt-js/             # JavaScript脚本
-├── bmt-css/            # 样式文件
-├── mdui/               # MDUI框架
-└── js-lyrics/          # 歌词处理库（子模块）
+├── frontend/            # 前端项目目录
+│   ├── src/
+│   │   ├── views/       # 页面组件
+│   │   ├── components/  # UI组件
+│   │   ├── api/         # API调用
+│   │   └── types.ts     # TypeScript类型定义
+│   ├── dist/            # 构建输出（嵌入到Go二进制）
+│   └── package.json
+└── build-windows.bat    # Windows构建脚本
 ```
 
 ## API文档

@@ -15,7 +15,7 @@ import (
 	"gorm.io/gorm"
 )
 
-//go:embed *.html bmt-css bmt-js mdui js-lyrics .config
+//go:embed frontend/dist
 var staticFiles embed.FS
 
 var (
@@ -316,19 +316,47 @@ func main() {
 	router.HandleFunc("/api/presets/export", exportPresets).Methods("GET")
 	router.HandleFunc("/ws", handleWebSocket)
 
-	// Serve static files
-	subFS, err := fs.Sub(staticFiles, ".")
+	// Serve static files from frontend/dist
+	subFS, err := fs.Sub(staticFiles, "frontend/dist")
 	if err != nil {
 		log.Fatal(err)
 	}
-	router.PathPrefix("/").Handler(http.FileServer(http.FS(subFS)))
+	
+	// Serve index.html for all non-API routes (SPA routing)
+	router.PathPrefix("/").Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Check if the requested file exists
+		path := r.URL.Path
+		if path == "/" {
+			path = "/index.html"
+		}
+		
+		// Try to open the file
+		file, err := subFS.Open(path[1:]) // Remove leading slash
+		if err != nil {
+			// If file doesn't exist, serve index.html for SPA routing
+			indexFile, err := subFS.Open("index.html")
+			if err != nil {
+				http.Error(w, "Not found", http.StatusNotFound)
+				return
+			}
+			defer indexFile.Close()
+			
+			stat, _ := indexFile.(interface{ Stat() (fs.FileInfo, error) }).Stat()
+			http.ServeContent(w, r, "index.html", stat.ModTime(), indexFile.(interface{ Read([]byte) (int, error); Seek(int64, int) (int64, error) }))
+			return
+		}
+		defer file.Close()
+		
+		// Serve the file
+		http.FileServer(http.FS(subFS)).ServeHTTP(w, r)
+	}))
 
 	// Start broadcast handler
 	go handleBroadcast()
 
 	fmt.Println("Server starting on :3001")
-	fmt.Println("Control Panel: http://localhost:3001/control-pannel.html")
-	fmt.Println("Display: http://localhost:3001/show-source.html")
+	fmt.Println("Control Panel: http://localhost:3001/control-panel")
+	fmt.Println("Display: http://localhost:3001/show-source")
 	
 	log.Fatal(http.ListenAndServe(":3001", router))
 }
