@@ -14,7 +14,7 @@ var $ = mdui.$;
 var ws; // WebSocket connection
 var serverConnected = false;
 var retryCount = 0;
-var maxRetryDelay = 30000; // 最大重试延迟30秒
+var retryDelay = 1000; // 固定1秒重试间隔
 
 // 显示连接状态提示
 function showConnectionStatus(connected) {
@@ -78,11 +78,10 @@ function presetInit() {
                 }
             }
             
-            // 自动重试，使用指数退避
+            // 自动重试，使用固定1秒间隔
             retryCount++;
-            var delay = Math.min(1000 * Math.pow(2, retryCount - 1), maxRetryDelay);
-            console.log(`Retrying in ${delay}ms (attempt ${retryCount})...`);
-            setTimeout(presetInit, delay);
+            console.log(`Retrying in ${retryDelay}ms (attempt ${retryCount})...`);
+            setTimeout(presetInit, retryDelay);
         });
 }
 
@@ -307,8 +306,8 @@ function SavePresetToLocal() {
         .catch(err => {
             console.error('Failed to save preset:', err);
             showConnectionStatus(false);
-            // 触发重新连接
-            setTimeout(presetInit, 2000);
+            // 触发重新连接，使用固定1秒间隔
+            setTimeout(presetInit, retryDelay);
         });
     }
 }
@@ -413,7 +412,7 @@ $('#import-export-dialog').on('confirm.mdui.dialog', function () {
         console.error('Failed to import presets:', err);
         showConnectionStatus(false);
         mdui.alert('导入失败，服务器连接错误', '错误');
-        setTimeout(presetInit, 2000); // 尝试重新连接
+        setTimeout(presetInit, retryDelay); // 尝试重新连接
     });
 });
 //导入单KEY配置

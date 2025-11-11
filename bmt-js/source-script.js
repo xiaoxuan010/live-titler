@@ -13,7 +13,7 @@ var stillPlayingFlag = [false, false, false, false];
 var $ = mdui.$;
 var ws; // WebSocket connection
 var reconnectAttempts = 0;
-var maxReconnectDelay = 30000; // 最大重连延迟30秒
+var reconnectDelay = 1000; // 固定1秒重连间隔
 
 // 连接WebSocket
 function connectWebSocket() {
@@ -48,19 +48,17 @@ function connectWebSocket() {
             console.log(`WebSocket disconnected (code: ${event.code}, reason: ${event.reason})`);
             // 保持当前显示内容不变，不显示任何错误提示
             
-            // 使用指数退避算法进行重连
+            // 使用固定1秒间隔进行重连
             reconnectAttempts++;
-            var delay = Math.min(1000 * Math.pow(2, reconnectAttempts - 1), maxReconnectDelay);
-            console.log(`Will reconnect in ${delay}ms (attempt ${reconnectAttempts})...`);
-            setTimeout(connectWebSocket, delay);
+            console.log(`Will reconnect in ${reconnectDelay}ms (attempt ${reconnectAttempts})...`);
+            setTimeout(connectWebSocket, reconnectDelay);
         };
     } catch (err) {
         console.error('Failed to create WebSocket connection:', err);
-        // 使用指数退避算法进行重连
+        // 使用固定1秒间隔进行重连
         reconnectAttempts++;
-        var delay = Math.min(1000 * Math.pow(2, reconnectAttempts - 1), maxReconnectDelay);
-        console.log(`Will retry connection in ${delay}ms...`);
-        setTimeout(connectWebSocket, delay);
+        console.log(`Will retry connection in ${reconnectDelay}ms...`);
+        setTimeout(connectWebSocket, reconnectDelay);
     }
 }
 
