@@ -188,8 +188,8 @@ function lyricsShow(i) {
     var cp = preset[i].current_preset;
     if (i < 2) {
         var content = preset[i].content[cp];
-        $(`#key${i}-name`).html(content.name);
-        $(`#key${i}-person`).html(content.person);
+        $(`#key${i}-name`).text(content.name);
+        $(`#key${i}-person`).text(content.person);
     }
     else {
         var cl = preset[i].content[cp].current_lyrics;
