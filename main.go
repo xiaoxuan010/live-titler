@@ -1,362 +1,308 @@
 package main
 
 import (
-	"embed"
-	"encoding/json"
-	"fmt"
-	"io/fs"
-	"log"
-	"net/http"
-	"sync"
+"embed"
+"encoding/json"
+"fmt"
+"io/fs"
+"log"
+"net/http"
+"sync"
 
-	"github.com/gorilla/mux"
-	"github.com/gorilla/websocket"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
+"github.com/gorilla/mux"
+"github.com/gorilla/websocket"
+"gorm.io/driver/sqlite"
+"gorm.io/gorm"
 )
 
 //go:embed frontend/dist
 var staticFiles embed.FS
 
 var (
-	db       *gorm.DB
-	upgrader = websocket.Upgrader{
-		CheckOrigin: func(r *http.Request) bool {
-			return true // Allow all origins for LAN access
-		},
-	}
-	clients   = make(map[*websocket.Conn]bool)
-	clientsMu sync.Mutex
-	broadcast = make(chan []byte)
+db       *gorm.DB
+upgrader = websocket.Upgrader{
+CheckOrigin: func(r *http.Request) bool {
+return true
+},
+}
+clients   = make(map[*websocket.Conn]bool)
+clientsMu sync.Mutex
+broadcast = make(chan []byte)
 )
 
-// Database models
-type Preset struct {
-	ID         uint   `gorm:"primaryKey" json:"-"`
-	KeyNum     string `gorm:"column:key_num" json:"key_num"`
-	KeyName    string `gorm:"column:key_name" json:"key_name"`
-	Status     string `gorm:"column:status" json:"status"`
-	TransTime  string `gorm:"column:transition_time" json:"transition_time"`
-	CurPreset  string `gorm:"column:current_preset" json:"current_preset"`
-	ContentRaw string `gorm:"column:content_raw;type:text" json:"-"`
-	Content    []PresetContent `gorm:"-" json:"content"`
-}
-
-type PresetContent struct {
-	Num           string  `json:"num,omitempty"`
-	Person        string  `json:"person,omitempty"`
-	Name          string  `json:"name,omitempty"`
-	SongName      string  `json:"song_name,omitempty"`
-	CurrentLyrics *int    `json:"current_lyrics,omitempty"`
-	Lyrics        []Lyric `json:"lyrics,omitempty"`
-}
-
-type Lyric struct {
-	TransitionTime interface{} `json:"transition_time"` // Can be string or number
-	Text           string      `json:"text"`
-}
-
-func initDB() {
-	var err error
-	db, err = gorm.Open(sqlite.Open("live-titler.db"), &gorm.Config{})
-	if err != nil {
-		log.Fatal("Failed to connect to database:", err)
-	}
-
-	// Auto migrate the schema
-	err = db.AutoMigrate(&Preset{})
-	if err != nil {
-		log.Fatal("Failed to migrate database:", err)
-	}
-
-	// Initialize with default presets if empty
-	var count int64
-	db.Model(&Preset{}).Count(&count)
-	if count == 0 {
-		initDefaultData()
-	}
-}
-
-// Helper function to create int pointer
-func intPtr(i int) *int {
-	return &i
-}
-
-func initDefaultData() {
-	// Default presets - simplified version
-	defaultPresets := []Preset{
-		{
-			KeyNum:    "0",
-			KeyName:   "KEY0",
-			Status:    "CLOSED",
-			TransTime: "1",
-			CurPreset: "0",
-			Content: []PresetContent{
-				{Num: "0", Person: "表演者", Name: "节目名"},
-			},
-		},
-		{
-			KeyNum:    "1",
-			KeyName:   "KEY1",
-			Status:    "CLOSED",
-			TransTime: "1",
-			CurPreset: "0",
-			Content: []PresetContent{
-				{Num: "0", Person: "表演者", Name: "节目名"},
-			},
-		},
-		{
-			KeyNum:    "2",
-			KeyName:   "KEY2",
-			Status:    "CLOSED",
-			TransTime: "1",
-			CurPreset: "0",
-			Content: []PresetContent{
-				{
-					SongName:      "默认歌曲",
-					CurrentLyrics: intPtr(0),
-					Lyrics: []Lyric{
-						{TransitionTime: "1", Text: ""},
-					},
-				},
-			},
-		},
-		{
-			KeyNum:    "3",
-			KeyName:   "KEY3",
-			Status:    "CLOSED",
-			TransTime: "1",
-			CurPreset: "0",
-			Content: []PresetContent{
-				{
-					SongName:      "默认歌曲",
-					CurrentLyrics: intPtr(0),
-					Lyrics: []Lyric{
-						{TransitionTime: "1", Text: ""},
-					},
-				},
-			},
-		},
-	}
-
-	for _, preset := range defaultPresets {
-		contentJSON, _ := json.Marshal(preset.Content)
-		preset.ContentRaw = string(contentJSON)
-		db.Create(&preset)
-	}
-}
-
-// BeforeSave hook to serialize Content to ContentRaw
-func (p *Preset) BeforeSave(tx *gorm.DB) error {
-	if len(p.Content) > 0 {
-		contentJSON, err := json.Marshal(p.Content)
-		if err != nil {
-			return err
-		}
-		p.ContentRaw = string(contentJSON)
-	}
-	return nil
-}
-
-// AfterFind hook to deserialize ContentRaw to Content
-func (p *Preset) AfterFind(tx *gorm.DB) error {
-	if p.ContentRaw != "" {
-		err := json.Unmarshal([]byte(p.ContentRaw), &p.Content)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// HTTP Handlers
-func getPresets(w http.ResponseWriter, r *http.Request) {
-	var presets []Preset
-	result := db.Find(&presets)
-	if result.Error != nil {
-		http.Error(w, result.Error.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(presets)
-}
-
-func updatePreset(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	keyNum := vars["keyNum"]
-
-	var preset Preset
-	if err := json.NewDecoder(r.Body).Decode(&preset); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	// Serialize Content to ContentRaw before updating
-	if len(preset.Content) > 0 {
-		contentJSON, err := json.Marshal(preset.Content)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		preset.ContentRaw = string(contentJSON)
-	}
-
-	// Update the preset in database
-	result := db.Model(&Preset{}).Where("key_num = ?", keyNum).Updates(map[string]interface{}{
-		"key_name":        preset.KeyName,
-		"status":          preset.Status,
-		"transition_time": preset.TransTime,
-		"current_preset":  preset.CurPreset,
-		"content_raw":     preset.ContentRaw,
-	})
-
-	if result.Error != nil {
-		http.Error(w, result.Error.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Broadcast the update to all connected clients
-	var allPresets []Preset
-	db.Find(&allPresets)
-	presetsJSON, _ := json.Marshal(allPresets)
-	broadcast <- presetsJSON
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
-}
-
-func importPresets(w http.ResponseWriter, r *http.Request) {
-	var presets []Preset
-	if err := json.NewDecoder(r.Body).Decode(&presets); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	// Clear existing presets
-	db.Exec("DELETE FROM presets")
-
-	// Insert new presets
-	for _, preset := range presets {
-		db.Create(&preset)
-	}
-
-	// Broadcast the update
-	presetsJSON, _ := json.Marshal(presets)
-	broadcast <- presetsJSON
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
-}
-
-func exportPresets(w http.ResponseWriter, r *http.Request) {
-	var presets []Preset
-	db.Find(&presets)
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(presets)
-}
-
-// WebSocket handler
-func handleWebSocket(w http.ResponseWriter, r *http.Request) {
-	conn, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		log.Println("WebSocket upgrade error:", err)
-		return
-	}
-	defer conn.Close()
-
-	clientsMu.Lock()
-	clients[conn] = true
-	clientsMu.Unlock()
-
-	// Send current state to new client
-	var presets []Preset
-	db.Find(&presets)
-	presetsJSON, _ := json.Marshal(presets)
-	conn.WriteMessage(websocket.TextMessage, presetsJSON)
-
-	// Keep connection alive and listen for client disconnect
-	for {
-		_, _, err := conn.ReadMessage()
-		if err != nil {
-			clientsMu.Lock()
-			delete(clients, conn)
-			clientsMu.Unlock()
-			break
-		}
-	}
-}
-
-// Broadcast messages to all connected clients
-func handleBroadcast() {
-	for {
-		message := <-broadcast
-		clientsMu.Lock()
-		for client := range clients {
-			err := client.WriteMessage(websocket.TextMessage, message)
-			if err != nil {
-				client.Close()
-				delete(clients, client)
-			}
-		}
-		clientsMu.Unlock()
-	}
-}
-
 func main() {
-	initDB()
+if err := initDB(); err != nil {
+log.Fatal("Failed to initialize database:", err)
+}
 
-	router := mux.NewRouter()
+fmt.Println("Database initialized successfully")
 
-	// API routes
-	router.HandleFunc("/api/presets", getPresets).Methods("GET")
-	router.HandleFunc("/api/presets/{keyNum}", updatePreset).Methods("PUT")
-	router.HandleFunc("/api/presets/import", importPresets).Methods("POST")
-	router.HandleFunc("/api/presets/export", exportPresets).Methods("GET")
-	router.HandleFunc("/ws", handleWebSocket)
+router := mux.NewRouter()
 
-	// Serve static files from frontend/dist
-	subFS, err := fs.Sub(staticFiles, "frontend/dist")
-	if err != nil {
-		log.Fatal(err)
-	}
-	
-	// Serve index.html for all non-API routes (SPA routing)
-	router.PathPrefix("/").Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Check if the requested file exists
-		path := r.URL.Path
-		if path == "/" {
-			path = "/index.html"
-		}
-		
-		// Try to open the file
-		file, err := subFS.Open(path[1:]) // Remove leading slash
-		if err != nil {
-			// If file doesn't exist, serve index.html for SPA routing
-			indexFile, err := subFS.Open("index.html")
-			if err != nil {
-				http.Error(w, "Not found", http.StatusNotFound)
-				return
-			}
-			defer indexFile.Close()
-			
-			stat, _ := indexFile.(interface{ Stat() (fs.FileInfo, error) }).Stat()
-			http.ServeContent(w, r, "index.html", stat.ModTime(), indexFile.(interface{ Read([]byte) (int, error); Seek(int64, int) (int64, error) }))
-			return
-		}
-		defer file.Close()
-		
-		// Serve the file
-		http.FileServer(http.FS(subFS)).ServeHTTP(w, r)
-	}))
+router.HandleFunc("/api/keys", getKeys).Methods("GET")
+router.HandleFunc("/api/keys", createKey).Methods("POST")
+router.HandleFunc("/api/keys/{id}", getKey).Methods("GET")
+router.HandleFunc("/api/keys/{id}", updateKey).Methods("PATCH")
+router.HandleFunc("/api/keys/{id}", deleteKey).Methods("DELETE")
+router.HandleFunc("/api/keys/reorder", reorderKeys).Methods("POST")
 
-	// Start broadcast handler
-	go handleBroadcast()
+router.HandleFunc("/api/programs", createProgram).Methods("POST")
+router.HandleFunc("/api/programs/{id}", updateProgram).Methods("PATCH")
+router.HandleFunc("/api/programs/{id}", deleteProgram).Methods("DELETE")
 
-	fmt.Println("Server starting on :3001")
-	fmt.Println("Control Panel: http://localhost:3001/control-panel")
-	fmt.Println("Display: http://localhost:3001/show-source")
-	
-	log.Fatal(http.ListenAndServe(":3001", router))
+router.HandleFunc("/api/songs", createSong).Methods("POST")
+router.HandleFunc("/api/songs/{id}", updateSong).Methods("PATCH")
+router.HandleFunc("/api/songs/{id}", deleteSong).Methods("DELETE")
+
+router.HandleFunc("/api/lyrics", createLyric).Methods("POST")
+router.HandleFunc("/api/lyrics/{id}", updateLyric).Methods("PATCH")
+router.HandleFunc("/api/lyrics/{id}", deleteLyric).Methods("DELETE")
+
+router.HandleFunc("/ws", handleWebSocket)
+router.HandleFunc("/api/presets", getKeysLegacy).Methods("GET")
+router.HandleFunc("/api/presets/export", exportData).Methods("GET")
+
+subFS, err := fs.Sub(staticFiles, "frontend/dist")
+if err != nil {
+log.Fatal(err)
+}
+
+router.PathPrefix("/").Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+path := r.URL.Path
+if path == "/" {
+path = "/index.html"
+}
+
+file, err := subFS.Open(path[1:])
+if err != nil {
+indexFile, err := subFS.Open("index.html")
+if err != nil {
+http.Error(w, "Not found", http.StatusNotFound)
+return
+}
+defer indexFile.Close()
+
+stat, _ := indexFile.(interface{ Stat() (fs.FileInfo, error) }).Stat()
+http.ServeContent(w, r, "index.html", stat.ModTime(), indexFile.(interface {
+Read([]byte) (int, error)
+Seek(int64, int) (int64, error)
+}))
+return
+}
+defer file.Close()
+
+http.FileServer(http.FS(subFS)).ServeHTTP(w, r)
+}))
+
+go handleBroadcast()
+
+fmt.Println("Server starting on :3001")
+fmt.Println("Control Panel: http://localhost:3001/control-panel")
+fmt.Println("Display: http://localhost:3001/show-source")
+
+log.Fatal(http.ListenAndServe(":3001", router))
+}
+
+func handleWebSocket(w http.ResponseWriter, r *http.Request) {
+conn, err := upgrader.Upgrade(w, r, nil)
+if err != nil {
+log.Println("WebSocket upgrade error:", err)
+return
+}
+defer conn.Close()
+
+clientsMu.Lock()
+clients[conn] = true
+clientsMu.Unlock()
+
+sendFullState(conn)
+
+defer func() {
+clientsMu.Lock()
+delete(clients, conn)
+clientsMu.Unlock()
+}()
+
+for {
+_, _, err := conn.ReadMessage()
+if err != nil {
+break
+}
+}
+}
+
+func sendFullState(conn *websocket.Conn) {
+var keys []Key
+db.Order("position").Find(&keys)
+
+var response []KeyResponse
+for _, key := range keys {
+keyResp := buildKeyResponse(key)
+response = append(response, keyResp)
+}
+
+data, _ := json.Marshal(response)
+conn.WriteMessage(websocket.TextMessage, data)
+}
+
+func buildKeyResponse(key Key) KeyResponse {
+keyResp := KeyResponse{
+ID:              key.ID,
+Name:            key.Name,
+Position:        key.Position,
+KeyType:         key.KeyType,
+Status:          key.Status,
+TransitionTime:  key.TransitionTime,
+CurrentPresetID: key.CurrentPresetID,
+Version:         key.Version,
+}
+
+if key.KeyType == "program" {
+var programs []Program
+db.Where("key_id = ?", key.ID).Order("position").Find(&programs)
+for _, prog := range programs {
+keyResp.Programs = append(keyResp.Programs, ProgramResponse{
+ID:       prog.ID,
+Num:      prog.Num,
+Name:     prog.Name,
+Person:   prog.Person,
+Position: prog.Position,
+})
+}
+} else if key.KeyType == "lyrics" {
+var songs []Song
+db.Where("key_id = ?", key.ID).Order("position").Find(&songs)
+for _, song := range songs {
+var lyrics []Lyric
+db.Where("song_id = ?", song.ID).Order("position").Find(&lyrics)
+
+songResp := SongResponse{
+ID:             song.ID,
+Name:           song.Name,
+CurrentLyricID: song.CurrentLyricID,
+Position:       song.Position,
+}
+for _, lyric := range lyrics {
+songResp.Lyrics = append(songResp.Lyrics, LyricResponse{
+ID:             lyric.ID,
+Text:           lyric.Text,
+TransitionTime: lyric.TransitionTime,
+Position:       lyric.Position,
+})
+}
+keyResp.Songs = append(keyResp.Songs, songResp)
+}
+}
+
+return keyResp
+}
+
+func handleBroadcast() {
+for {
+message := <-broadcast
+
+clientsMu.Lock()
+for client := range clients {
+err := client.WriteMessage(websocket.TextMessage, message)
+if err != nil {
+client.Close()
+delete(clients, client)
+}
+}
+clientsMu.Unlock()
+}
+}
+
+func getKeysLegacy(w http.ResponseWriter, r *http.Request) {
+var keys []Key
+db.Order("position").Find(&keys)
+
+var legacyResponse []map[string]interface{}
+
+for i, key := range keys {
+legacyKey := map[string]interface{}{
+"key_num":         fmt.Sprintf("%d", i),
+"key_name":        key.Name,
+"status":          key.Status,
+"transition_time": fmt.Sprintf("%.1f", key.TransitionTime),
+"current_preset":  "0",
+"content":         []interface{}{},
+}
+
+if key.KeyType == "program" {
+var programs []Program
+db.Where("key_id = ?", key.ID).Order("position").Find(&programs)
+
+var content []map[string]interface{}
+for _, prog := range programs {
+content = append(content, map[string]interface{}{
+"num":    prog.Num,
+"person": prog.Person,
+"name":   prog.Name,
+})
+}
+legacyKey["content"] = content
+
+if key.CurrentPresetID != nil {
+for idx, prog := range programs {
+if prog.ID == *key.CurrentPresetID {
+legacyKey["current_preset"] = fmt.Sprintf("%d", idx)
+break
+}
+}
+}
+} else if key.KeyType == "lyrics" {
+var songs []Song
+db.Where("key_id = ?", key.ID).Order("position").Find(&songs)
+
+var content []map[string]interface{}
+for _, song := range songs {
+var lyrics []Lyric
+db.Where("song_id = ?", song.ID).Order("position").Find(&lyrics)
+
+var lyricsArray []map[string]interface{}
+for _, lyric := range lyrics {
+lyricsArray = append(lyricsArray, map[string]interface{}{
+"transition_time": lyric.TransitionTime,
+"text":            lyric.Text,
+})
+}
+
+currentLyricIdx := 0
+if song.CurrentLyricID != nil {
+for idx, lyric := range lyrics {
+if lyric.ID == *song.CurrentLyricID {
+currentLyricIdx = idx
+break
+}
+}
+}
+
+content = append(content, map[string]interface{}{
+"song_name":      song.Name,
+"current_lyrics": currentLyricIdx,
+"lyrics":         lyricsArray,
+})
+}
+legacyKey["content"] = content
+
+if key.CurrentPresetID != nil {
+for idx, song := range songs {
+if song.ID == *key.CurrentPresetID {
+legacyKey["current_preset"] = fmt.Sprintf("%d", idx)
+break
+}
+}
+}
+}
+
+legacyResponse = append(legacyResponse, legacyKey)
+}
+
+w.Header().Set("Content-Type", "application/json")
+json.NewEncoder(w).Encode(legacyResponse)
+}
+
+func exportData(w http.ResponseWriter, r *http.Request) {
+getKeysLegacy(w, r)
 }
