@@ -10,13 +10,13 @@ import (
 // Key represents a display key that can be managed dynamically
 type Key struct {
 	ID              uint      `gorm:"primaryKey" json:"id"`
-	Name            string    `gorm:"not null" json:"name"`                       // User-defined name like "KEY0", "节目一"
-	Position        int       `gorm:"not null;uniqueIndex" json:"position"`       // Display order
-	KeyType         string    `gorm:"not null" json:"key_type"`                   // "program" or "lyrics"
-	Status          string    `gorm:"default:CLOSED" json:"status"`               // CLOSED, OPENING, OPENED, CLOSING, PLAYING_FORWARD
-	TransitionTime  float64   `gorm:"default:1.0" json:"transition_time"`         // Default transition time in seconds
-	CurrentPresetID *uint     `json:"current_preset_id"`                          // Currently selected preset (program or song)
-	Version         int       `gorm:"default:0" json:"version"`                   // For optimistic locking
+	Name            string    `gorm:"not null" json:"name"`                 // User-defined name like "KEY0", "节目一"
+	Position        int       `gorm:"not null;uniqueIndex" json:"position"` // Display order
+	KeyType         string    `gorm:"not null" json:"key_type"`             // "program" or "lyrics"
+	Status          string    `gorm:"default:CLOSED" json:"status"`         // CLOSED, OPENING, OPENED, CLOSING, PLAYING_FORWARD
+	TransitionTime  float64   `gorm:"default:1.0" json:"transition_time"`   // Default transition time in seconds
+	CurrentPresetID *uint     `json:"current_preset_id"`                    // Currently selected preset (program or song)
+	Version         int       `gorm:"default:0" json:"version"`             // For optimistic locking
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
 }
@@ -25,26 +25,26 @@ type Key struct {
 type Program struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
 	KeyID     uint      `gorm:"not null;index" json:"key_id"`
-	Num       string    `json:"num"`        // Program number
-	Name      string    `json:"name"`       // Program name
-	Person    string    `json:"person"`     // Performer name
+	Num       string    `json:"num"`                      // Program number
+	Name      string    `json:"name"`                     // Program name
+	Person    string    `json:"person"`                   // Performer name
 	Position  int       `gorm:"not null" json:"position"` // Order within the key
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
-	
+
 	Key Key `gorm:"foreignKey:KeyID;constraint:OnDelete:CASCADE" json:"-"`
 }
 
 // Song represents a song (for "lyrics" type keys)
 type Song struct {
-	ID              uint      `gorm:"primaryKey" json:"id"`
-	KeyID           uint      `gorm:"not null;index" json:"key_id"`
-	Name            string    `gorm:"not null" json:"name"` // Song name
-	CurrentLyricID  *uint     `json:"current_lyric_id"`     // Currently displayed lyric line
-	Position        int       `gorm:"not null" json:"position"` // Order within the key
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
-	
+	ID             uint      `gorm:"primaryKey" json:"id"`
+	KeyID          uint      `gorm:"not null;index" json:"key_id"`
+	Name           string    `gorm:"not null" json:"name"`     // Song name
+	CurrentLyricID *uint     `json:"current_lyric_id"`         // Currently displayed lyric line
+	Position       int       `gorm:"not null" json:"position"` // Order within the key
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+
 	Key    Key     `gorm:"foreignKey:KeyID;constraint:OnDelete:CASCADE" json:"-"`
 	Lyrics []Lyric `gorm:"foreignKey:SongID" json:"lyrics,omitempty"`
 }
@@ -55,10 +55,10 @@ type Lyric struct {
 	SongID         uint      `gorm:"not null;index" json:"song_id"`
 	Text           string    `gorm:"type:text" json:"text"`
 	TransitionTime float64   `gorm:"default:1.0" json:"transition_time"` // Animation time for this line
-	Position       int       `gorm:"not null" json:"position"`            // Order within the song
+	Position       int       `gorm:"not null" json:"position"`           // Order within the song
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
-	
+
 	Song Song `gorm:"foreignKey:SongID;constraint:OnDelete:CASCADE" json:"-"`
 }
 
