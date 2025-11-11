@@ -11,6 +11,7 @@ var preset;
 const preset_id = "hflive-bmt-preset";
 var key2_timer, key3_timer;
 var $ = mdui.$;
+var ws; // WebSocket connection
 
 // 初始化函数
 presetInit();
@@ -19,22 +20,28 @@ presetInit();
 
 //初始化预设文件
 function presetInit() {
-    // 从本地读取
-    var storage_preset = localStorage.getItem(preset_id);
-    // 如果能读到就用本地的，否则用默认的，默认的存储在default-preset.js里
-    if (storage_preset != null) {
-        preset = JSON.parse(storage_preset);
-    }
-    else {
-        preset = default_preset;
-    }
-
-    // 重复四次，每次设置一个key
-    for (var i = 0; i < 4; i++) {
-        RefreshKeySettings(i);
-        RefreshCurrentPreset(i);
-        RefreshKeyStatus(i);
-    }
+    // 从服务器读取预设
+    fetch('/api/presets')
+        .then(response => response.json())
+        .then(data => {
+            preset = data;
+            // 重复四次，每次设置一个key
+            for (var i = 0; i < 4; i++) {
+                RefreshKeySettings(i);
+                RefreshCurrentPreset(i);
+                RefreshKeyStatus(i);
+            }
+        })
+        .catch(err => {
+            console.error('Failed to load presets:', err);
+            // 如果服务器失败，使用默认数据
+            preset = default_preset;
+            for (var i = 0; i < 4; i++) {
+                RefreshKeySettings(i);
+                RefreshCurrentPreset(i);
+                RefreshKeyStatus(i);
+            }
+        });
 }
 
 //保存预设文件
@@ -233,9 +240,18 @@ function deleteLyrics(i) {
     RefreshLyricsList(i);
 }
 
-//将预设保存到本地存储
+//将预设保存到服务器
 function SavePresetToLocal() {
-    localStorage.setItem(preset_id, JSON.stringify(preset));//把对象编码成JSON字符串，存到localStorage
+    // 发送到服务器
+    for (var i = 0; i < preset.length; i++) {
+        fetch(`/api/presets/${preset[i].key_num}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(preset[i])
+        }).catch(err => console.error('Failed to save preset:', err));
+    }
 }
 
 //切换Key状态
@@ -309,9 +325,24 @@ $('#import-export-dialog').on('confirm.mdui.dialog', function () {
         mdui.alert('输入的配置文件不合法，详见浏览器Console.', '修改未生效');
         return;//结束函数
     }
-    SavePresetToLocal();//没问题才会存进本地
-    presetInit();//用新的配置刷新
-    mdui.snackbar('保存成功');
+    
+    // 发送到服务器
+    fetch('/api/presets/import', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(preset)
+    })
+    .then(response => response.json())
+    .then(data => {
+        presetInit();//用新的配置刷新
+        mdui.snackbar('保存成功');
+    })
+    .catch(err => {
+        console.error('Failed to import presets:', err);
+        mdui.alert('导入失败', '错误');
+    });
 });
 //导入单KEY配置
 function importKeyPreset(i) {

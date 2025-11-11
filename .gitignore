@@ -1,0 +1,16 @@
+# Binaries
+live-titler
+live-titler.exe
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Database
+*.db
+
+# Go
+go.sum
+
+# Backups
+*.bak

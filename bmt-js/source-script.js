@@ -11,20 +11,45 @@ var preset;
 const preset_id = "hflive-bmt-preset";
 var stillPlayingFlag = [false, false, false, false];
 var $ = mdui.$;
+var ws; // WebSocket connection
 
-//监听数据变动
-window.addEventListener('storage', RefreshContent);//有本地数据变动时调用RefreshContent函数
+// 连接WebSocket
+function connectWebSocket() {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    
+    ws = new WebSocket(wsUrl);
+    
+    ws.onopen = function() {
+        console.log('WebSocket connected');
+    };
+    
+    ws.onmessage = function(event) {
+        try {
+            preset = JSON.parse(event.data);
+            RefreshContent();
+        } catch (err) {
+            console.error('Failed to parse WebSocket message:', err);
+        }
+    };
+    
+    ws.onerror = function(error) {
+        console.error('WebSocket error:', error);
+    };
+    
+    ws.onclose = function() {
+        console.log('WebSocket disconnected, reconnecting...');
+        setTimeout(connectWebSocket, 1000);
+    };
+}
 
-//初始化调用
-RefreshContent();
+// 初始化调用
+connectWebSocket();
 
 function presetInit() {
-    var storage_preset = localStorage.getItem(preset_id);//从浏览器存储中读取数据，格式为JSON字符串
-    if (storage_preset != null) {//如果不为空，即本地有数据
-        preset = JSON.parse(storage_preset);//使用本地数据
-    }
-    else {
-        preset = default_preset;//否则使用默认数据（在dafault-preset.js里面）
+    // 数据从WebSocket接收，不需要从localStorage读取
+    if (!preset) {
+        preset = default_preset;//使用默认数据作为后备
     }
 }
 
