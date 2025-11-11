@@ -179,7 +179,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { api, createWebSocket } from '@/api'
-import type { Key, ProgramData, SongData } from '@/types'
+import type { Key, PresetStatus, ProgramData, SongData } from '@/types'
 import { isProgramKey, isLyricsKey } from '@/types'
 import Button from '@/components/ui/Button.vue'
 
@@ -218,7 +218,7 @@ function connectWebSocket() {
   }
 }
 
-async function updateKeyStatus(key: Key, status: string) {
+async function updateKeyStatus(key: Key, status: PresetStatus) {
   if (!connected.value) return
   
   try {
