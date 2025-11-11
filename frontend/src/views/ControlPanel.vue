@@ -1,9 +1,9 @@
 <template>
-  <div class="min-h-screen bg-background p-4">
+  <div class="min-h-screen bg-white p-4">
     <!-- Connection Status Banner -->
     <div
       v-if="!connected"
-      class="fixed top-0 left-0 right-0 bg-destructive text-destructive-foreground text-center py-2 z-50"
+      class="fixed top-0 left-0 right-0 bg-red-600 text-white text-center py-2 z-50"
     >
       服务器连接已断开，正在重试...
     </div>
@@ -30,10 +30,10 @@
         <div
           v-for="(preset, index) in presets"
           :key="`progress-${preset.key_num}`"
-          class="h-2 bg-secondary rounded-full overflow-hidden"
+          class="h-2 bg-gray-100 rounded-full overflow-hidden"
         >
           <div
-            class="h-full bg-destructive transition-all"
+            class="h-full bg-red-600 transition-all"
             :style="{
               width: preset.status === 'OPENED' || preset.status === 'OPENING' ? '100%' : '0%',
               transitionDuration: preset.transition_time + 's'
@@ -60,7 +60,7 @@
         <div
           v-for="(preset, index) in presets"
           :key="`panel-${preset.key_num}`"
-          class="border rounded-lg p-4"
+          class="border border-gray-200 rounded-lg p-4"
         >
           <h3 class="text-xl font-bold mb-4">{{ preset.key_name }}</h3>
           
@@ -73,7 +73,7 @@
                 v-model="preset.transition_time"
                 @change="savePreset(index)"
                 :disabled="!connected"
-                class="w-full px-3 py-2 border rounded-md"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-400"
               />
             </div>
             
@@ -84,7 +84,7 @@
                 v-model="preset.content[Number(preset.current_preset)]!.num"
                 @change="savePreset(index)"
                 :disabled="!connected"
-                class="w-full px-3 py-2 border rounded-md"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-400"
               />
             </div>
             
@@ -95,7 +95,7 @@
                 v-model="preset.content[Number(preset.current_preset)]!.person"
                 @change="savePreset(index)"
                 :disabled="!connected"
-                class="w-full px-3 py-2 border rounded-md"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-400"
               />
             </div>
             
@@ -106,7 +106,7 @@
                 v-model="preset.content[Number(preset.current_preset)]!.name"
                 @change="savePreset(index)"
                 :disabled="!connected"
-                class="w-full px-3 py-2 border rounded-md"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-400"
               />
             </div>
           </div>
@@ -119,7 +119,7 @@
                 v-model="preset.current_preset"
                 @change="savePreset(index)"
                 :disabled="!connected"
-                class="w-full px-3 py-2 border rounded-md"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-400"
               >
                 <option
                   v-for="(content, cidx) in preset.content"
@@ -138,20 +138,20 @@
                 v-model="preset.transition_time"
                 @change="savePreset(index)"
                 :disabled="!connected"
-                class="w-full px-3 py-2 border rounded-md"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-400"
               />
             </div>
 
             <div v-if="getCurrentContent(preset)">
               <label class="block text-sm font-medium mb-1">歌词列表</label>
-              <div class="border rounded-md max-h-60 overflow-y-auto">
+              <div class="border border-gray-300 rounded-md max-h-60 overflow-y-auto">
                 <div
                   v-for="(lyric, lidx) in getCurrentContent(preset)!.lyrics"
                   :key="lidx"
                   @click="selectLyric(index, lidx)"
                   :class="[
-                    'px-3 py-2 cursor-pointer hover:bg-accent',
-                    getCurrentContent(preset)!.current_lyrics === lidx ? 'bg-accent' : ''
+                    'px-3 py-2 cursor-pointer hover:bg-gray-100',
+                    getCurrentContent(preset)!.current_lyrics === lidx ? 'bg-gray-100' : ''
                   ]"
                 >
                   {{ lyric.text || '(空行)' }}
@@ -181,11 +181,11 @@
       class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
       @click.self="showImportExport = false"
     >
-      <div class="bg-background p-6 rounded-lg max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+      <div class="bg-white p-6 rounded-lg max-w-2xl w-full max-h-[80vh] overflow-y-auto">
         <h2 class="text-2xl font-bold mb-4">配置文件</h2>
         <textarea
           v-model="importExportText"
-          class="w-full h-64 px-3 py-2 border rounded-md font-mono text-sm"
+          class="w-full h-64 px-3 py-2 border border-gray-300 rounded-md font-mono text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
           placeholder="在此处输入JSON配置文件"
         ></textarea>
         <div class="flex gap-2 mt-4">

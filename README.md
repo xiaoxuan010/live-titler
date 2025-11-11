@@ -12,7 +12,7 @@ This repository was transferred from `xiaoxuan010/HFLive-BMT` to `HFLive/live-ti
 
 本项目已重构为现代化浏览器/服务器架构：
 - **后端**: Go语言实现的HTTP服务器，使用SQLite3数据库
-- **前端**: Vue 3 + Vite + shadcn/ui 现代化前端框架
+- **前端**: Vue 3 + Vite + TailwindCSS 现代化前端框架
 - **通信**: REST API + WebSocket实时推送
 - **部署**: 单一可执行文件，包含所有静态资源
 
@@ -145,7 +145,7 @@ go run main.go
 
 **前端:**
 - Vue 3 + Vite
-- shadcn/ui (Radix Vue) + Tailwind CSS
+- TailwindCSS
 - TypeScript
 - vue-router
 - lyrics.js
