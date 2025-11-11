@@ -48,7 +48,8 @@ This repository was transferred from `xiaoxuan010/HFLive-BMT` to `HFLive/live-ti
 ## 功能特性
 
 ### 核心功能
-- ✅ 4个独立的Key控制通道
+- ✅ 动态Key管理（创建、删除、重命名、排序、切换类型）
+- ✅ 4个独立的Key控制通道（可扩展）
 - ✅ 预设管理（KEY0/1: 节目信息，KEY2/3: 歌词）
 - ✅ 歌词实时显示和逐字动画
 - ✅ 转场动画控制
@@ -56,11 +57,18 @@ This repository was transferred from `xiaoxuan010/HFLive-BMT` to `HFLive/live-ti
 
 ### 新架构特性
 - ✅ 浏览器/服务器架构
-- ✅ SQLite3数据持久化
+- ✅ 规范化数据库设计（多表：keys, programs, songs, lyrics）
+- ✅ 并发控制（乐观锁机制，版本号检查）
 - ✅ 多控制端同步操作
 - ✅ WebSocket实时推送
 - ✅ 自动重连机制（1秒间隔）
 - ✅ 局域网多设备访问
+
+## 界面导航
+
+- **控制面板**: `http://localhost:3001/control-panel` - 主控制界面
+- **Key管理**: `http://localhost:3001/control-panel/keys` - 动态管理Keys
+- **显示面板**: `http://localhost:3001/show-source` - OBS浏览器源
 
 ## 数据管理
 
