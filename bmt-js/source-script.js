@@ -12,35 +12,56 @@ const preset_id = "hflive-bmt-preset";
 var stillPlayingFlag = [false, false, false, false];
 var $ = mdui.$;
 var ws; // WebSocket connection
+var reconnectAttempts = 0;
+var maxReconnectDelay = 30000; // 最大重连延迟30秒
 
 // 连接WebSocket
 function connectWebSocket() {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}/ws`;
     
-    ws = new WebSocket(wsUrl);
+    console.log(`Attempting WebSocket connection to ${wsUrl} (attempt ${reconnectAttempts + 1})...`);
     
-    ws.onopen = function() {
-        console.log('WebSocket connected');
-    };
-    
-    ws.onmessage = function(event) {
-        try {
-            preset = JSON.parse(event.data);
-            RefreshContent();
-        } catch (err) {
-            console.error('Failed to parse WebSocket message:', err);
-        }
-    };
-    
-    ws.onerror = function(error) {
-        console.error('WebSocket error:', error);
-    };
-    
-    ws.onclose = function() {
-        console.log('WebSocket disconnected, reconnecting...');
-        setTimeout(connectWebSocket, 1000);
-    };
+    try {
+        ws = new WebSocket(wsUrl);
+        
+        ws.onopen = function() {
+            console.log('WebSocket connected successfully');
+            reconnectAttempts = 0; // 重置重连计数
+        };
+        
+        ws.onmessage = function(event) {
+            try {
+                preset = JSON.parse(event.data);
+                RefreshContent();
+            } catch (err) {
+                console.error('Failed to parse WebSocket message:', err);
+            }
+        };
+        
+        ws.onerror = function(error) {
+            console.error('WebSocket error:', error);
+            // 不在页面上显示任何错误，仅记录到console
+        };
+        
+        ws.onclose = function(event) {
+            console.log(`WebSocket disconnected (code: ${event.code}, reason: ${event.reason})`);
+            // 保持当前显示内容不变，不显示任何错误提示
+            
+            // 使用指数退避算法进行重连
+            reconnectAttempts++;
+            var delay = Math.min(1000 * Math.pow(2, reconnectAttempts - 1), maxReconnectDelay);
+            console.log(`Will reconnect in ${delay}ms (attempt ${reconnectAttempts})...`);
+            setTimeout(connectWebSocket, delay);
+        };
+    } catch (err) {
+        console.error('Failed to create WebSocket connection:', err);
+        // 使用指数退避算法进行重连
+        reconnectAttempts++;
+        var delay = Math.min(1000 * Math.pow(2, reconnectAttempts - 1), maxReconnectDelay);
+        console.log(`Will retry connection in ${delay}ms...`);
+        setTimeout(connectWebSocket, delay);
+    }
 }
 
 // 初始化调用

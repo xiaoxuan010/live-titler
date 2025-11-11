@@ -12,6 +12,31 @@ const preset_id = "hflive-bmt-preset";
 var key2_timer, key3_timer;
 var $ = mdui.$;
 var ws; // WebSocket connection
+var serverConnected = false;
+var retryCount = 0;
+var maxRetryDelay = 30000; // 最大重试延迟30秒
+
+// 显示连接状态提示
+function showConnectionStatus(connected) {
+    serverConnected = connected;
+    var statusBar = $('#connection-status');
+    
+    if (!statusBar.length) {
+        // 创建状态栏元素
+        $('body').prepend('<div id="connection-status" class="mdui-color-red-600" style="position:fixed;top:0;left:0;right:0;padding:10px;text-align:center;z-index:9999;display:none;">服务器连接已断开，正在重试...</div>');
+        statusBar = $('#connection-status');
+    }
+    
+    if (connected) {
+        statusBar.hide();
+        // 启用所有控制
+        $('button, input, textarea, select').prop('disabled', false);
+    } else {
+        statusBar.show();
+        // 禁用所有控制
+        $('button, input, textarea, select').prop('disabled', true);
+    }
+}
 
 // 初始化函数
 presetInit();
@@ -22,9 +47,16 @@ presetInit();
 function presetInit() {
     // 从服务器读取预设
     fetch('/api/presets')
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
             preset = data;
+            showConnectionStatus(true);
+            retryCount = 0; // 重置重试计数
             // 重复四次，每次设置一个key
             for (var i = 0; i < 4; i++) {
                 RefreshKeySettings(i);
@@ -34,13 +66,23 @@ function presetInit() {
         })
         .catch(err => {
             console.error('Failed to load presets:', err);
+            showConnectionStatus(false);
+            
             // 如果服务器失败，使用默认数据
-            preset = default_preset;
-            for (var i = 0; i < 4; i++) {
-                RefreshKeySettings(i);
-                RefreshCurrentPreset(i);
-                RefreshKeyStatus(i);
+            if (!preset) {
+                preset = default_preset;
+                for (var i = 0; i < 4; i++) {
+                    RefreshKeySettings(i);
+                    RefreshCurrentPreset(i);
+                    RefreshKeyStatus(i);
+                }
             }
+            
+            // 自动重试，使用指数退避
+            retryCount++;
+            var delay = Math.min(1000 * Math.pow(2, retryCount - 1), maxRetryDelay);
+            console.log(`Retrying in ${delay}ms (attempt ${retryCount})...`);
+            setTimeout(presetInit, delay);
         });
 }
 
@@ -242,6 +284,11 @@ function deleteLyrics(i) {
 
 //将预设保存到服务器
 function SavePresetToLocal() {
+    if (!serverConnected) {
+        console.warn('Server not connected, cannot save preset');
+        return;
+    }
+    
     // 发送到服务器
     for (var i = 0; i < preset.length; i++) {
         fetch(`/api/presets/${preset[i].key_num}`, {
@@ -250,7 +297,19 @@ function SavePresetToLocal() {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(preset[i])
-        }).catch(err => console.error('Failed to save preset:', err));
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .catch(err => {
+            console.error('Failed to save preset:', err);
+            showConnectionStatus(false);
+            // 触发重新连接
+            setTimeout(presetInit, 2000);
+        });
     }
 }
 
@@ -318,6 +377,12 @@ function imexOpened(i) {
 
 // 从文本框导入全局配置
 $('#import-export-dialog').on('confirm.mdui.dialog', function () {
+    if (!serverConnected) {
+        console.error('Cannot import: server not connected');
+        mdui.alert('服务器未连接，无法导入配置', '错误');
+        return;
+    }
+    
     try {
         preset = JSON.parse($(`#imex-preset-textarea`).val());//尝试解析JSON
     } catch (err) {     //如果JSON格式不对就抛出异常
@@ -334,14 +399,21 @@ $('#import-export-dialog').on('confirm.mdui.dialog', function () {
         },
         body: JSON.stringify(preset)
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
         presetInit();//用新的配置刷新
         mdui.snackbar('保存成功');
     })
     .catch(err => {
         console.error('Failed to import presets:', err);
-        mdui.alert('导入失败', '错误');
+        showConnectionStatus(false);
+        mdui.alert('导入失败，服务器连接错误', '错误');
+        setTimeout(presetInit, 2000); // 尝试重新连接
     });
 });
 //导入单KEY配置

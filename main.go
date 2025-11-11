@@ -33,12 +33,12 @@ var (
 // Database models
 type Preset struct {
 	ID         uint   `gorm:"primaryKey" json:"-"`
-	KeyNum     string `json:"key_num"`
-	KeyName    string `json:"key_name"`
-	Status     string `json:"status"`
-	TransTime  string `json:"transition_time"`
-	CurPreset  string `json:"current_preset"`
-	ContentRaw string `gorm:"type:text" json:"-"`
+	KeyNum     string `gorm:"column:key_num" json:"key_num"`
+	KeyName    string `gorm:"column:key_name" json:"key_name"`
+	Status     string `gorm:"column:status" json:"status"`
+	TransTime  string `gorm:"column:transition_time" json:"transition_time"`
+	CurPreset  string `gorm:"column:current_preset" json:"current_preset"`
+	ContentRaw string `gorm:"column:content_raw;type:text" json:"-"`
 	Content    []PresetContent `gorm:"-" json:"content"`
 }
 
@@ -187,6 +187,16 @@ func updatePreset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Serialize Content to ContentRaw before updating
+	if len(preset.Content) > 0 {
+		contentJSON, err := json.Marshal(preset.Content)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		preset.ContentRaw = string(contentJSON)
+	}
+
 	// Update the preset in database
 	result := db.Model(&Preset{}).Where("key_num = ?", keyNum).Updates(map[string]interface{}{
 		"key_name":        preset.KeyName,
@@ -202,8 +212,10 @@ func updatePreset(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Broadcast the update to all connected clients
-	presetJSON, _ := json.Marshal(preset)
-	broadcast <- presetJSON
+	var allPresets []Preset
+	db.Find(&allPresets)
+	presetsJSON, _ := json.Marshal(allPresets)
+	broadcast <- presetsJSON
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
