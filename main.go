@@ -58,8 +58,6 @@ router.HandleFunc("/api/lyrics/{id}", updateLyric).Methods("PATCH")
 router.HandleFunc("/api/lyrics/{id}", deleteLyric).Methods("DELETE")
 
 router.HandleFunc("/ws", handleWebSocket)
-router.HandleFunc("/api/presets", getKeysLegacy).Methods("GET")
-router.HandleFunc("/api/presets/export", exportData).Methods("GET")
 
 subFS, err := fs.Sub(staticFiles, "frontend/dist")
 if err != nil {
@@ -212,96 +210,4 @@ clientsMu.Unlock()
 }
 }
 
-func getKeysLegacy(w http.ResponseWriter, r *http.Request) {
-var keys []Key
-db.Order("position").Find(&keys)
 
-var legacyResponse []map[string]interface{}
-
-for i, key := range keys {
-legacyKey := map[string]interface{}{
-"key_num":         fmt.Sprintf("%d", i),
-"key_name":        key.Name,
-"status":          key.Status,
-"transition_time": fmt.Sprintf("%.1f", key.TransitionTime),
-"current_preset":  "0",
-"content":         []interface{}{},
-}
-
-if key.KeyType == "program" {
-var programs []Program
-db.Where("key_id = ?", key.ID).Order("position").Find(&programs)
-
-var content []map[string]interface{}
-for _, prog := range programs {
-content = append(content, map[string]interface{}{
-"num":    prog.Num,
-"person": prog.Person,
-"name":   prog.Name,
-})
-}
-legacyKey["content"] = content
-
-if key.CurrentPresetID != nil {
-for idx, prog := range programs {
-if prog.ID == *key.CurrentPresetID {
-legacyKey["current_preset"] = fmt.Sprintf("%d", idx)
-break
-}
-}
-}
-} else if key.KeyType == "lyrics" {
-var songs []Song
-db.Where("key_id = ?", key.ID).Order("position").Find(&songs)
-
-var content []map[string]interface{}
-for _, song := range songs {
-var lyrics []Lyric
-db.Where("song_id = ?", song.ID).Order("position").Find(&lyrics)
-
-var lyricsArray []map[string]interface{}
-for _, lyric := range lyrics {
-lyricsArray = append(lyricsArray, map[string]interface{}{
-"transition_time": lyric.TransitionTime,
-"text":            lyric.Text,
-})
-}
-
-currentLyricIdx := 0
-if song.CurrentLyricID != nil {
-for idx, lyric := range lyrics {
-if lyric.ID == *song.CurrentLyricID {
-currentLyricIdx = idx
-break
-}
-}
-}
-
-content = append(content, map[string]interface{}{
-"song_name":      song.Name,
-"current_lyrics": currentLyricIdx,
-"lyrics":         lyricsArray,
-})
-}
-legacyKey["content"] = content
-
-if key.CurrentPresetID != nil {
-for idx, song := range songs {
-if song.ID == *key.CurrentPresetID {
-legacyKey["current_preset"] = fmt.Sprintf("%d", idx)
-break
-}
-}
-}
-}
-
-legacyResponse = append(legacyResponse, legacyKey)
-}
-
-w.Header().Set("Content-Type", "application/json")
-json.NewEncoder(w).Encode(legacyResponse)
-}
-
-func exportData(w http.ResponseWriter, r *http.Request) {
-getKeysLegacy(w, r)
-}

@@ -1,51 +1,9 @@
-import type { Preset, Key, KeyType } from '../types'
+import type { Key, KeyType, ProgramData, SongData, LyricData } from '../types'
 
 const API_BASE = '/api'
 
 export const api = {
-  async getPresets(): Promise<Preset[]> {
-    const response = await fetch(`${API_BASE}/presets`)
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-    return response.json()
-  },
-
-  async updatePreset(keyNum: string, preset: Preset): Promise<void> {
-    const response = await fetch(`${API_BASE}/presets/${keyNum}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(preset),
-    })
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-  },
-
-  async importPresets(presets: Preset[]): Promise<void> {
-    const response = await fetch(`${API_BASE}/presets/import`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(presets),
-    })
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-  },
-
-  async exportPresets(): Promise<Preset[]> {
-    const response = await fetch(`${API_BASE}/presets/export`)
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-    return response.json()
-  },
-
-  // New normalized API methods for key management
+  // Keys management
   async getKeys(): Promise<Key[]> {
     const response = await fetch(`${API_BASE}/keys`)
     if (!response.ok) {
@@ -54,13 +12,13 @@ export const api = {
     return response.json()
   },
 
-  async createKey(name: string, keyType: KeyType): Promise<Key> {
+  async createKey(name: string, keyType: KeyType, transitionTime: number = 1.0): Promise<Key> {
     const response = await fetch(`${API_BASE}/keys`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ name, key_type: keyType }),
+      body: JSON.stringify({ name, key_type: keyType, transition_time: transitionTime }),
     })
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`)
@@ -68,7 +26,7 @@ export const api = {
     return response.json()
   },
 
-  async updateKey(id: number, data: Partial<Key>): Promise<Key> {
+  async updateKey(id: number, data: Partial<Key> & { version: number }): Promise<{status: string, version: number}> {
     const response = await fetch(`${API_BASE}/keys/${id}`, {
       method: 'PATCH',
       headers: {
@@ -106,9 +64,120 @@ export const api = {
       throw new Error(`HTTP error! status: ${response.status}`)
     }
   },
+
+  // Programs management
+  async createProgram(keyId: number, data: Omit<ProgramData, 'id' | 'position'>): Promise<ProgramData> {
+    const response = await fetch(`${API_BASE}/programs`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ key_id: keyId, ...data }),
+    })
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+    return response.json()
+  },
+
+  async updateProgram(id: number, data: Partial<Omit<ProgramData, 'id' | 'position'>>): Promise<void> {
+    const response = await fetch(`${API_BASE}/programs/${id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    })
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+  },
+
+  async deleteProgram(id: number): Promise<void> {
+    const response = await fetch(`${API_BASE}/programs/${id}`, {
+      method: 'DELETE',
+    })
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+  },
+
+  // Songs management
+  async createSong(keyId: number, name: string): Promise<SongData> {
+    const response = await fetch(`${API_BASE}/songs`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ key_id: keyId, name }),
+    })
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+    return response.json()
+  },
+
+  async updateSong(id: number, data: Partial<Omit<SongData, 'id' | 'position' | 'lyrics'>>): Promise<void> {
+    const response = await fetch(`${API_BASE}/songs/${id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    })
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+  },
+
+  async deleteSong(id: number): Promise<void> {
+    const response = await fetch(`${API_BASE}/songs/${id}`, {
+      method: 'DELETE',
+    })
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+  },
+
+  // Lyrics management
+  async createLyric(songId: number, text: string, transitionTime: number = 1.0): Promise<LyricData> {
+    const response = await fetch(`${API_BASE}/lyrics`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ song_id: songId, text, transition_time: transitionTime }),
+    })
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+    return response.json()
+  },
+
+  async updateLyric(id: number, data: Partial<Omit<LyricData, 'id' | 'position'>>): Promise<void> {
+    const response = await fetch(`${API_BASE}/lyrics/${id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    })
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+  },
+
+  async deleteLyric(id: number): Promise<void> {
+    const response = await fetch(`${API_BASE}/lyrics/${id}`, {
+      method: 'DELETE',
+    })
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+  },
 }
 
-export function createWebSocket(onMessage: (data: Preset[]) => void): WebSocket {
+export function createWebSocket(onMessage: (data: Key[]) => void): WebSocket {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
   const wsUrl = `${protocol}//${window.location.host}/ws`
   
@@ -120,7 +189,7 @@ export function createWebSocket(onMessage: (data: Preset[]) => void): WebSocket 
   
   ws.onmessage = (event) => {
     try {
-      const data = JSON.parse(event.data)
+      const data: Key[] = JSON.parse(event.data)
       onMessage(data)
     } catch (err) {
       console.error('Failed to parse WebSocket message:', err)

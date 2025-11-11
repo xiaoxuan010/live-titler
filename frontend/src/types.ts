@@ -1,30 +1,6 @@
-export interface Lyric {
-  transition_time: string | number
-  text: string
-}
-
-export interface PresetContent {
-  num?: string
-  person?: string
-  name?: string
-  song_name?: string
-  current_lyrics?: number
-  lyrics?: Lyric[]
-}
-
-export interface Preset {
-  key_num: string
-  key_name: string
-  status: string
-  transition_time: string
-  current_preset: string
-  content: PresetContent[]
-}
-
-export type PresetStatus = 'CLOSED' | 'CLOSING' | 'OPENED' | 'OPENING' | 'PLAYING_FORWARD'
-
 // New normalized data types for key management
 export type KeyType = 'program' | 'lyrics'
+export type PresetStatus = 'CLOSED' | 'CLOSING' | 'OPENED' | 'OPENING' | 'PLAYING_FORWARD'
 
 export interface LyricData {
   id: number
@@ -60,4 +36,13 @@ export interface Key {
   version: number
   programs?: ProgramData[]
   songs?: SongData[]
+}
+
+// Type guards
+export function isProgramKey(key: Key): key is Key & { programs: ProgramData[] } {
+  return key.key_type === 'program' && !!key.programs
+}
+
+export function isLyricsKey(key: Key): key is Key & { songs: SongData[] } {
+  return key.key_type === 'lyrics' && !!key.songs
 }
