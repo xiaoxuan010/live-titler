@@ -170,12 +170,7 @@ A: 可以！所有控制端的操作会通过WebSocket实时同步到所有显�
 
 ## 开源相关
 
-本项目完全开源，开源地址：https://github.com/xiaoxuan010/live-titler ，开源协议见LICENSE文件
+本项目完全开源，开源地址：https://github.com/HFLive/live-titler ，开源协议见LICENSE文件
 
 本项目使用的开源代码有：
 1. MDUI( https://github.com/zdhxiong/mdui )，其基于MIT协议
-
-## 致谢
-
-- 原作者: HFLive13.0 xiaoxuan010
-- 原项目: https://github.com/xiaoxuan010/HFLive-BMT
