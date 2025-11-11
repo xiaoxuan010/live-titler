@@ -79,8 +79,8 @@ function presetInit() {
             }
             
             // 自动重试，使用固定1秒间隔
+            console.log(`Retrying in ${retryDelay}ms (attempt ${retryCount + 1})...`);
             retryCount++;
-            console.log(`Retrying in ${retryDelay}ms (attempt ${retryCount})...`);
             setTimeout(presetInit, retryDelay);
         });
 }
@@ -149,6 +149,10 @@ function RefreshKeySettings(i) {
 function RefreshLyricsList(i) {
     var cs = preset[i].current_preset;
     $(`#key${i}-lyrics-list`).empty();
+    // 检查是否存在lyrics数组
+    if (!preset[i].content[cs] || !preset[i].content[cs].lyrics) {
+        return;
+    }
     for (var j = 0; j < preset[i].content[cs].lyrics.length; j++) {
         var elem = document.createElement('li');
         $(elem).addClass('mdui-list-item mdui-ripple');
@@ -167,7 +171,15 @@ function RefreshLyricsList(i) {
 //切换高亮的歌词
 function RefreshCurrentLyrics(i) {
     var cp = preset[i].current_preset;
+    // 检查是否存在current_lyrics和lyrics数组
+    if (!preset[i].content[cp] || !preset[i].content[cp].lyrics) {
+        return;
+    }
     var cl = preset[i].content[cp].current_lyrics;
+    // 检查当前歌词索引是否有效
+    if (cl === undefined || !preset[i].content[cp].lyrics[cl]) {
+        return;
+    }
     $($(`#key${i}-lyrics-list`).children()).removeClass('mdui-list-item-active');
     $(`#key${i}-song${cp}-lyrics-${cl}`).addClass('mdui-list-item-active');
     $(`#key${i}-individual-transition-time`).val(preset[i].content[cp].lyrics[cl].transition_time);//读取歌词，写入文本框

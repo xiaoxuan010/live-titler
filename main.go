@@ -43,12 +43,12 @@ type Preset struct {
 }
 
 type PresetContent struct {
-	Num          string `json:"num,omitempty"`
-	Person       string `json:"person,omitempty"`
-	Name         string `json:"name,omitempty"`
-	SongName     string `json:"song_name,omitempty"`
-	CurrentLyrics int   `json:"current_lyrics,omitempty"`
-	Lyrics       []Lyric `json:"lyrics,omitempty"`
+	Num           string  `json:"num,omitempty"`
+	Person        string  `json:"person,omitempty"`
+	Name          string  `json:"name,omitempty"`
+	SongName      string  `json:"song_name,omitempty"`
+	CurrentLyrics *int    `json:"current_lyrics,omitempty"`
+	Lyrics        []Lyric `json:"lyrics,omitempty"`
 }
 
 type Lyric struct {
@@ -75,6 +75,11 @@ func initDB() {
 	if count == 0 {
 		initDefaultData()
 	}
+}
+
+// Helper function to create int pointer
+func intPtr(i int) *int {
+	return &i
 }
 
 func initDefaultData() {
@@ -109,7 +114,7 @@ func initDefaultData() {
 			Content: []PresetContent{
 				{
 					SongName:      "默认歌曲",
-					CurrentLyrics: 0,
+					CurrentLyrics: intPtr(0),
 					Lyrics: []Lyric{
 						{TransitionTime: "1", Text: ""},
 					},
@@ -125,7 +130,7 @@ func initDefaultData() {
 			Content: []PresetContent{
 				{
 					SongName:      "默认歌曲",
-					CurrentLyrics: 0,
+					CurrentLyrics: intPtr(0),
 					Lyrics: []Lyric{
 						{TransitionTime: "1", Text: ""},
 					},
@@ -321,9 +326,9 @@ func main() {
 	// Start broadcast handler
 	go handleBroadcast()
 
-	fmt.Println("Server starting on :8080")
-	fmt.Println("Control Panel: http://localhost:8080/control-pannel.html")
-	fmt.Println("Display: http://localhost:8080/show-source.html")
+	fmt.Println("Server starting on :3001")
+	fmt.Println("Control Panel: http://localhost:3001/control-pannel.html")
+	fmt.Println("Display: http://localhost:3001/show-source.html")
 	
-	log.Fatal(http.ListenAndServe(":8080", router))
+	log.Fatal(http.ListenAndServe(":3001", router))
 }

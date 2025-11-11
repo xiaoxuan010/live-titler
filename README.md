@@ -2,89 +2,180 @@ This repository was transferred from `xiaoxuan010/HFLive-BMT` to `HFLive/live-ti
 
 ---
 
-# HFLive-BMT
+# Live Titler
 
 ![](https://i.bmp.ovh/imgs/2022/02/3984a1bfd6d18100.png)
 
-## 这是什么
+## 项目介绍
 
 这是一套可用于OBS的标题Web页面，可以实现基本的文字显示和动画。
 
-本插件由HFLive13.0某同学开发，初衷是给HFLive提供一个可用的、轻量的、美观的Title软件。考虑开发简便性和使用简便性，最终使用纯HTML+CSS+JavaScript开发，可以离线使用。
+本项目已重构为浏览器/服务器架构：
+- **后端**: Go语言实现的HTTP服务器，使用SQLite3数据库
+- **前端**: 保留原有的HTML/CSS/JavaScript前端页面
+- **通信**: REST API + WebSocket实时推送
+- **部署**: 单一可执行文件，包含所有静态资源
 
-## 怎么使用
+## 快速开始
 
-### 下载
+### Windows用户
 
-在GitHub上下载本软件的源码，内含bmt-css、bmt-js、mdui等文件夹，control-panel.html、show-source.html等文件。将这些内容复制到任一可访问的文件夹，不要删除。
+1. 下载或构建 `live-titler.exe`
+2. 双击运行 `live-titler.exe`
+3. 浏览器访问：
+   - 控制面板: http://localhost:3001/control-pannel.html
+   - 显示面板: http://localhost:3001/show-source.html
 
-### 测试
+### 在OBS中使用
 
-直接双击两个以html结尾的文件或拖入同一电脑的同一款浏览器，就可以在控制面板上控制，显示面板中查看标题效果。
+1. **添加自定义浏览器停靠窗口** (控制面板)
+   - 打开OBS，左上角 视图 > 停靠部件 > 自定义浏览器停靠窗口
+   - Dock名填写"Live Titler - 控制面板"
+   - URL填写: `http://localhost:3001/control-pannel.html`
 
-### 安装到OBS
+2. **添加浏览器源** (显示面板)
+   - 在场景中添加"浏览器"源
+   - URL填写: `http://localhost:3001/show-source.html`
+   - 宽度: 1920, 高度: 1080
+   - 取消勾选"本地文件"
 
-#### OBS 27.1.3
+### 局域网访问
 
-1. 打开OBS，左上角 视图 > 停靠部件(Dock) > 自定义浏览器(Dock)
+如果需要在局域网内其他设备访问：
+- 查看服务器IP地址（例如：192.168.1.100）
+- 在其他设备访问: `http://192.168.1.100:3001/control-pannel.html`
 
-   ![](https://i.bmp.ovh/imgs/2022/02/103d74983a6fb695.png)
+## 功能特性
 
-   在弹出的窗口中，左侧Dock名可随意填写（如“HFLiveBMT - 控制面板")，右侧URL填写control-pannel.html文件的路径（如"C:\User\xiaoxuan010\Desktop\HFLive-BMT\control-pannel.html"），注意路径不要加双引号。
+### 核心功能
+- ✅ 4个独立的Key控制通道
+- ✅ 预设管理（KEY0/1: 节目信息，KEY2/3: 歌词）
+- ✅ 歌词实时显示和逐字动画
+- ✅ 转场动画控制
+- ✅ JSON导入/导出配置
 
-   ![](https://i.bmp.ovh/imgs/2022/02/b63175d47d7f718c.png)
+### 新架构特性
+- ✅ 浏览器/服务器架构
+- ✅ SQLite3数据持久化
+- ✅ 多控制端同步操作
+- ✅ WebSocket实时推送
+- ✅ 自动重连机制（1秒间隔）
+- ✅ 局域网多设备访问
 
-2. 弹出的控制窗口，可以自由拖动，并入OBS界面中。（注意检查不要“锁定用户界面“）
-3. 添加源“浏览器”，属性为：勾选本地文件，路径为show-source.html的路径（如C:/Users/xiaoxuan010/Desktop/HFLive-BMT/show-source.html）；宽度设置为1080，高度设置为1920；可以使用自定义帧率（也可以不用）；自定义CSS全部删掉（或按需填写）；其它可按默认。
+## 数据管理
 
-   ![](https://i.bmp.ovh/imgs/2022/02/c59fc1fdc110f583.png)
+### 数据存储
+所有数据存储在 `live-titler.db` SQLite数据库文件中，包括：
+- 4个Key的配置信息
+- 所有预设数据
+- 歌词内容
+- 播放状态
 
-### OBS 27.2.1
+### 备份和恢复
+1. **数据库文件备份**：复制 `live-titler.db` 文件
+2. **JSON导入导出**：在控制面板点击"导入/导出设置"
 
-在OBS 27.2.1中，出现了一些特性，需要改变安装方法。如果安装之后发现无法使用，就两种方法都试一下。
+## 开发指南
 
-1. 左上角“停靠窗口>自定义浏览器停靠窗口"，以下步骤同上。
+### 前置要求
+- Go 1.20 或更高版本
+- Git
 
-   ![](https://i.bmp.ovh/imgs/2022/02/ffa4889b56f7bf6f.png)
+### 从源代码构建
 
-2. **重点来了**：浏览器源中，不用勾选文件，按如下格式填入地址“file:///M:/HFLive-BMT/show-source.html"，实在不会填的可以在浏览器打开html文件然后把路径复制下来，如图。
+1. **克隆仓库并拉取子模块**
+```bash
+git clone https://github.com/xiaoxuan010/live-titler.git
+cd live-titler
+git submodule update --init --recursive
+```
 
-   ![](https://i.bmp.ovh/imgs/2022/02/530b6bb2ebdb5c88.png)
+2. **下载依赖**
+```bash
+go mod tidy
+```
 
+3. **构建Windows可执行文件**
+```bash
+go build -o live-titler.exe main.go
+```
 
+或使用批处理文件:
+```bash
+build-windows.bat
+```
 
-### 安装字体
+### 运行开发服务器
+```bash
+go run main.go
+```
+
+### 技术栈
+- **后端**: Go + gorilla/mux + gorilla/websocket + GORM + SQLite3
+- **前端**: HTML5 + CSS3 + JavaScript + MDUI + Fetch API + WebSocket
+
+### 目录结构
+```
+live-titler/
+├── main.go              # Go服务器主程序
+├── go.mod               # Go模块定义
+├── live-titler.db       # SQLite数据库（运行时生成）
+├── control-pannel.html  # 控制面板
+├── show-source.html     # 显示面板
+├── bmt-js/             # JavaScript脚本
+├── bmt-css/            # 样式文件
+├── mdui/               # MDUI框架
+└── js-lyrics/          # 歌词处理库（子模块）
+```
+
+## API文档
+
+### REST API
+- `GET /api/presets` - 获取所有预设
+- `PUT /api/presets/{keyNum}` - 更新指定Key的预设
+- `POST /api/presets/import` - 导入JSON配置
+- `GET /api/presets/export` - 导出JSON配置
+
+### WebSocket
+- `WS /ws` - 实时状态推送
+
+## 错误处理
+
+### 控制面板
+当服务器连接断开时：
+- 页面顶部显示红色提示条
+- 所有控制按钮和输入框被禁用
+- 自动尝试重新连接（每1秒重试一次）
+
+### 显示面板
+当服务器连接断开时：
+- 保持当前显示内容不变
+- 不显示任何错误提示（避免干扰直播）
+- 自动尝试重新连接（每1秒重试一次）
+
+## 常见问题
+
+**Q: 端口3001被占用怎么办？**
+A: 目前端口是固定的，需要停止占用3001端口的其他程序。
+
+**Q: 如何重置所有配置？**
+A: 删除 `live-titler.db` 文件，重启服务器即可恢复默认配置。
+
+**Q: 可以同时有多个控制端吗？**
+A: 可以！所有控制端的操作会通过WebSocket实时同步到所有显示端。
+
+## 安装字体
 
 作者测试时使用的字体是：方正灵飞经小楷 简、方正拉勾标题体 简（均可在方正官网免费下载）。安装字体后即可默认使用上述两款字体显示，否则会用浏览器默认字体。有需要可以到`bmt-css/source-style.css`里面自己设置。
 
-## 注意事项
-
-控制页面和显示页面要用同一个浏览器才能互相通信。比如OBS算一个浏览器，在OBS的Dock就可以控制源，在Chrome浏览器里的控制面板就不能控制OBS里面的源。设置存储在浏览器中，不同浏览器可以用“导入/导出功能"备份或同步设置（格式为JSON）。
-
-长宽写死了是1920x1080，有需求的可以自己去css文件里改。
-
-
-
-## 不好用/有没有xx功能/怎么不更新
-
-作者只是个苦逼高中生，一个周末抽空写了个小页面，可能也没时间更新。目前只针对HFLive的报幕条显示，希望HFLive14.0能用上。本软件完全免费、开源，欢迎其它大佬贡献代码。
-
-代码文件都写了详细的注释，需要自定义显示效果的可重点阅读`bmt-css/source-style.css`文件。
-
-## 开发进度
-
-KEY0、1、2已经可以使用，KEY3适配中
-
-## TODO List
-
-- [ ] 增强歌词切换稳定性
-- [x] 给出歌词导入解决方案
-- [ ] 支持设置字体
-
 ## 开源相关
 
-本项目完全开源，开源地址：https://github.com/xiaoxuan010/HFLive-BMT ，开源协议见LICENSE文件
+本项目完全开源，开源地址：https://github.com/xiaoxuan010/live-titler ，开源协议见LICENSE文件
 
 本项目使用的开源代码有：
-
 1. MDUI( https://github.com/zdhxiong/mdui )，其基于MIT协议
+
+## 致谢
+
+- 原作者: HFLive13.0 xiaoxuan010
+- 原项目: https://github.com/xiaoxuan010/HFLive-BMT

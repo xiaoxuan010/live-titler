@@ -190,7 +190,15 @@ function lyricsShow(i) {
         $(`#key${i}-person`).text(content.person);
     }
     else {
+        // 检查是否存在current_lyrics和lyrics数组
+        if (!preset[i].content[cp] || !preset[i].content[cp].lyrics) {
+            return;
+        }
         var cl = preset[i].content[cp].current_lyrics;
+        // 检查当前歌词索引是否有效
+        if (cl === undefined || !preset[i].content[cp].lyrics[cl]) {
+            return;
+        }
         var content = preset[i].content[cp].lyrics[cl].text;
         if ($(`#key${i}-name`).text() == content) return;
         $(`#key${i}-name`).empty();
