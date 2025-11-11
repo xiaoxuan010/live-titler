@@ -4,6 +4,7 @@ import './index.css'
 import App from './App.vue'
 import ControlPanel from './views/ControlPanel.vue'
 import ShowSource from './views/ShowSource.vue'
+import KeyManagement from './views/KeyManagement.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -16,6 +17,11 @@ const router = createRouter({
       path: '/control-panel',
       name: 'control-panel',
       component: ControlPanel
+    },
+    {
+      path: '/control-panel/keys',
+      name: 'key-management',
+      component: KeyManagement
     },
     {
       path: '/show-source',

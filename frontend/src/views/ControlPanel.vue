@@ -46,6 +46,11 @@
       <div class="mb-6">
         <h2 class="text-2xl font-bold mb-4">设置</h2>
         <div class="flex gap-2">
+          <router-link to="/control-panel/keys" class="inline-block">
+            <Button variant="outline">
+              管理 Keys
+            </Button>
+          </router-link>
           <Button @click="showImportExport = true" :disabled="!connected">
             导入/导出设置
           </Button>

@@ -206,7 +206,6 @@ func createKey(w http.ResponseWriter, r *http.Request) {
 		db.Model(&Key{}).Where("position >= ?", position).Update("position", gorm.Expr("position + 1"))
 	} else {
 		// Get max position
-		var maxPos int
 		db.Model(&Key{}).Select("COALESCE(MAX(position), -1) + 1").Scan(&position)
 	}
 
@@ -230,7 +229,7 @@ func createKey(w http.ResponseWriter, r *http.Request) {
 	broadcastUpdate()
 	
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteStatus(http.StatusCreated)
+	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(key)
 }
 
@@ -328,7 +327,7 @@ func deleteKey(w http.ResponseWriter, r *http.Request) {
 // Reorder keys
 func reorderKeys(w http.ResponseWriter, r *http.Request) {
 	var input struct {
-		KeyIDs []uint `json:"key_ids"` // New order of key IDs
+		IDs []uint `json:"ids"` // New order of key IDs
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
@@ -338,7 +337,14 @@ func reorderKeys(w http.ResponseWriter, r *http.Request) {
 
 	// Update positions in transaction
 	err := db.Transaction(func(tx *gorm.DB) error {
-		for i, keyID := range input.KeyIDs {
+		// First set all positions to negative values to avoid conflicts
+		for i, keyID := range input.IDs {
+			if err := tx.Model(&Key{}).Where("id = ?", keyID).Update("position", -(i + 1)).Error; err != nil {
+				return err
+			}
+		}
+		// Then set them to the correct positive values
+		for i, keyID := range input.IDs {
 			if err := tx.Model(&Key{}).Where("id = ?", keyID).Update("position", i).Error; err != nil {
 				return err
 			}
