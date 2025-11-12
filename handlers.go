@@ -268,11 +268,16 @@ func updateKey(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Update fields
+	// Special rule: ignore PLAYING_FORWARD if current status is not OPENED
+	ignorePlayingForward := false
+	if input.Status != nil && *input.Status == "PLAYING_FORWARD" && key.Status != "OPENED" {
+		ignorePlayingForward = true
+	}
 	updates := make(map[string]interface{})
 	if input.Name != nil {
 		updates["name"] = *input.Name
 	}
-	if input.Status != nil {
+	if input.Status != nil && !ignorePlayingForward {
 		updates["status"] = *input.Status
 	}
 	if input.TransitionTime != nil {
@@ -288,8 +293,8 @@ func updateKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Handle server-side state transitions
-	if input.Status != nil {
+	// Handle server-side state transitions (skip if ignored)
+	if input.Status != nil && !ignorePlayingForward {
 		handleStateTransition(uint(id), *input.Status, key.TransitionTime, key.KeyType)
 	}
 

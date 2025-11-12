@@ -219,11 +219,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from "vue";
 import { api, createWebSocket } from "@/api";
-import type { Key, PresetStatus, ProgramData, SongData } from "@/types";
-import { isProgramKey, isLyricsKey } from "@/types";
 import Button from "@/components/ui/Button.vue";
+import type { Key, PresetStatus, ProgramData, SongData } from "@/types";
+import { isLyricsKey, isProgramKey } from "@/types";
+import { onMounted, onUnmounted, ref } from "vue";
 
 const keys = ref<Key[]>([]);
 const connected = ref(false);
@@ -293,7 +293,24 @@ async function updateKeyTransition(key: Key, event: Event) {
 function toggleKey(key: Key) {
   // Simply send the transition state to the server
   // Server will handle the timing and final state transition
-  const newStatus = key.status === "CLOSED" ? "OPENING" : "CLOSING";
+  let newStatus: PresetStatus;
+  switch (key.status) {
+    case "CLOSED":
+      newStatus = "OPENING";
+      break;
+    case "OPENED":
+      newStatus = "CLOSING";
+      break;
+    case "OPENING":
+      newStatus = "CLOSING";
+      break;
+    case "CLOSING":
+      newStatus = "OPENING";
+      break;
+    case "PLAYING_FORWARD":
+      newStatus = "CLOSING";
+      break;
+  }
   updateKeyStatus(key, newStatus);
 }
 
