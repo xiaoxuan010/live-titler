@@ -23,9 +23,9 @@ func handleStateTransition(keyID uint, newStatus string, transitionTime float64,
 		})
 
 	case "PLAYING_FORWARD":
-		// Start auto-playing lyrics
+		// Play forward one lyric, then return to OPENED
 		if keyType == "lyrics" {
-			go autoPlayLyrics(keyID)
+			go playForwardOneLyric(keyID)
 		}
 
 	case "OPENED", "CLOSED":
@@ -54,76 +54,50 @@ func updateKeyStatus(keyID uint, newStatus string) {
 	broadcastUpdate()
 }
 
-// autoPlayLyrics automatically advances lyrics for PLAYING_FORWARD status
-func autoPlayLyrics(keyID uint) {
-	for {
-		var key Key
-		if err := db.First(&key, keyID).Error; err != nil {
-			log.Printf("Error finding key %d: %v", keyID, err)
-			return
-		}
-
-		// Stop if status changed
-		if key.Status != "PLAYING_FORWARD" {
-			return
-		}
-
-		// Get current song
-		if key.CurrentPresetID == nil {
-			updateKeyStatus(keyID, "OPENED")
-			return
-		}
-
-		var song Song
-		if err := db.First(&song, *key.CurrentPresetID).Error; err != nil {
-			log.Printf("Error finding song %d: %v", *key.CurrentPresetID, err)
-			updateKeyStatus(keyID, "OPENED")
-			return
-		}
-
-		// Get current lyric
-		if song.CurrentLyricID == nil {
-			updateKeyStatus(keyID, "OPENED")
-			return
-		}
-
-		var currentLyric Lyric
-		if err := db.First(&currentLyric, *song.CurrentLyricID).Error; err != nil {
-			log.Printf("Error finding lyric %d: %v", *song.CurrentLyricID, err)
-			updateKeyStatus(keyID, "OPENED")
-			return
-		}
-
-		// Wait for the current lyric's transition time
-		duration := time.Duration(currentLyric.TransitionTime * float64(time.Second))
-		time.Sleep(duration)
-
-		// Check status again after sleep
-		if err := db.First(&key, keyID).Error; err != nil || key.Status != "PLAYING_FORWARD" {
-			return
-		}
-
-		// Find next lyric
-		var nextLyric Lyric
-		err := db.Where("song_id = ? AND position > ?", song.ID, currentLyric.Position).
-			Order("position ASC").
-			First(&nextLyric).Error
-
-		if err != nil {
-			// No more lyrics, stop playing
-			updateKeyStatus(keyID, "OPENED")
-			return
-		}
-
-		// Update to next lyric
-		song.CurrentLyricID = &nextLyric.ID
-		if err := db.Save(&song).Error; err != nil {
-			log.Printf("Error updating song lyric: %v", err)
-			updateKeyStatus(keyID, "OPENED")
-			return
-		}
-
-		log.Printf("Auto-advanced to next lyric: %s", nextLyric.Text)
-		broadcastUpdate()
+// playForwardOneLyric plays forward one lyric and returns to OPENED status
+func playForwardOneLyric(keyID uint) {
+	var key Key
+	if err := db.First(&key, keyID).Error; err != nil {
+		log.Printf("Error finding key %d: %v", keyID, err)
+		return
 	}
+
+	// Get current song
+	if key.CurrentPresetID == nil {
+		updateKeyStatus(keyID, "OPENED")
+		return
+	}
+
+	var song Song
+	if err := db.First(&song, *key.CurrentPresetID).Error; err != nil {
+		log.Printf("Error finding song %d: %v", *key.CurrentPresetID, err)
+		updateKeyStatus(keyID, "OPENED")
+		return
+	}
+
+	// Get current lyric
+	if song.CurrentLyricID == nil {
+		updateKeyStatus(keyID, "OPENED")
+		return
+	}
+
+	var currentLyric Lyric
+	if err := db.First(&currentLyric, *song.CurrentLyricID).Error; err != nil {
+		log.Printf("Error finding lyric %d: %v", *song.CurrentLyricID, err)
+		updateKeyStatus(keyID, "OPENED")
+		return
+	}
+
+	// Wait for the current lyric's transition time
+	duration := time.Duration(currentLyric.TransitionTime * float64(time.Second))
+	time.Sleep(duration)
+
+	// Check status again after sleep (in case it was changed)
+	if err := db.First(&key, keyID).Error; err != nil || key.Status != "PLAYING_FORWARD" {
+		return
+	}
+
+	// Return to OPENED status after playing forward one lyric
+	updateKeyStatus(keyID, "OPENED")
+	log.Printf("Played forward one lyric for key %d, returning to OPENED", keyID)
 }
