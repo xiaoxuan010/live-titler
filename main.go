@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
@@ -27,7 +28,76 @@ var (
 	clients   = make(map[*websocket.Conn]bool)
 	clientsMu sync.Mutex
 	broadcast = make(chan []byte)
+	
+	// State manager for server-side transitions
+	stateManager = NewStateManager()
 )
+
+// StateTransition represents an active state transition
+type StateTransition struct {
+	keyID     uint
+	timer     *time.Timer
+	cancelCh  chan struct{}
+	fromState string
+	toState   string
+}
+
+// StateManager manages all active state transitions
+type StateManager struct {
+	mu          sync.RWMutex
+	transitions map[uint]*StateTransition
+}
+
+// NewStateManager creates a new state manager
+func NewStateManager() *StateManager {
+	return &StateManager{
+		transitions: make(map[uint]*StateTransition),
+	}
+}
+
+// Cancel cancels any existing transition for the given key
+func (sm *StateManager) Cancel(keyID uint) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	
+	if transition, exists := sm.transitions[keyID]; exists {
+		if transition.timer != nil {
+			transition.timer.Stop()
+		}
+		close(transition.cancelCh)
+		delete(sm.transitions, keyID)
+	}
+}
+
+// Start starts a new state transition
+func (sm *StateManager) Start(keyID uint, duration time.Duration, fromState, toState string, callback func()) {
+	sm.Cancel(keyID) // Cancel any existing transition
+	
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	
+	cancelCh := make(chan struct{})
+	transition := &StateTransition{
+		keyID:     keyID,
+		cancelCh:  cancelCh,
+		fromState: fromState,
+		toState:   toState,
+	}
+	
+	transition.timer = time.AfterFunc(duration, func() {
+		select {
+		case <-cancelCh:
+			return
+		default:
+			callback()
+			sm.mu.Lock()
+			delete(sm.transitions, keyID)
+			sm.mu.Unlock()
+		}
+	})
+	
+	sm.transitions[keyID] = transition
+}
 
 func main() {
 	if err := initDB(); err != nil {

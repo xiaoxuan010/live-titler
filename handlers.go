@@ -288,6 +288,11 @@ func updateKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Handle server-side state transitions
+	if input.Status != nil {
+		handleStateTransition(uint(id), *input.Status, key.TransitionTime, key.KeyType)
+	}
+
 	broadcastUpdate()
 
 	w.Header().Set("Content-Type", "application/json")

@@ -291,17 +291,10 @@ async function updateKeyTransition(key: Key, event: Event) {
 }
 
 function toggleKey(key: Key) {
-  key.status = key.status === "CLOSED" ? "OPENING" : "CLOSING";
-
-  updateKeyStatus(key, key.status);
-
-  setTimeout(
-    () => {
-      key.status = key.status === "OPENING" ? "OPENED" : "CLOSED";
-      updateKeyStatus(key, key.status);
-    },
-    Number(key.transition_time) * 1000,
-  );
+  // Simply send the transition state to the server
+  // Server will handle the timing and final state transition
+  const newStatus = key.status === "CLOSED" ? "OPENING" : "CLOSING";
+  updateKeyStatus(key, newStatus);
 }
 
 function getCurrentProgram(key: Key): ProgramData | undefined {
@@ -384,27 +377,9 @@ async function lyricsForward(key: Key) {
 }
 
 async function lyricsPlayForward(key: Key) {
-  await lyricsForward(key);
+  // Start playing forward - server will handle auto-advancing lyrics
   key.status = "PLAYING_FORWARD";
   await updateKeyStatus(key, "PLAYING_FORWARD");
-
-  const song = getCurrentSong(key);
-  if (song && song.lyrics) {
-    const currentLyric = song.lyrics.find(
-      (l) => l.id === song.current_lyric_id,
-    );
-    if (currentLyric) {
-      const time = Number(currentLyric.transition_time) * 1000;
-
-      setTimeout(
-        () => {
-          key.status = "OPENED";
-          updateKeyStatus(key, "OPENED");
-        },
-        Math.min(time, 4000),
-      );
-    }
-  }
 }
 
 onMounted(() => {
