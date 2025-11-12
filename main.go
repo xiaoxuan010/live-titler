@@ -163,9 +163,7 @@ func main() {
 
 	go handleBroadcast()
 
-	fmt.Println("Server starting on :3001")
-	fmt.Println("Control Panel: http://localhost:3001/control-panel")
-	fmt.Println("Display: http://localhost:3001/show-source")
+	printStartupBanner()
 
 	log.Fatal(http.ListenAndServe(":3001", router))
 }
@@ -278,4 +276,25 @@ func handleBroadcast() {
 		}
 		clientsMu.Unlock()
 	}
+}
+
+func printStartupBanner() {
+	const (
+		colorReset  = "\033[0m"
+		colorGreen  = "\033[32m"
+		colorCyan   = "\033[36m"
+		colorYellow = "\033[33m"
+		colorBold   = "\033[1m"
+	)
+
+	fmt.Println()
+	fmt.Printf("%s%s╔════════════════════════════════════════════════════════════╗%s\n", colorBold, colorCyan, colorReset)
+	fmt.Printf("%s%s║                   Live Titler 服务已启动                   ║%s\n", colorBold, colorCyan, colorReset)
+	fmt.Printf("%s%s╚════════════════════════════════════════════════════════════╝%s\n", colorBold, colorCyan, colorReset)
+	fmt.Println()
+	fmt.Printf("%s%s  ► 控制界面:%s http://localhost:3001/control-panel\n", colorBold, colorGreen, colorReset)
+	fmt.Printf("%s%s  ► 展示界面:%s http://localhost:3001/show-source\n", colorBold, colorYellow, colorReset)
+	fmt.Println()
+	fmt.Printf("%s%s提示:%s 按 Ctrl+C 停止服务\n", colorBold, colorCyan, colorReset)
+	fmt.Println()
 }
