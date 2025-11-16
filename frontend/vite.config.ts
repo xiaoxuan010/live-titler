@@ -4,7 +4,16 @@ import path from "path";
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [
+    vue({
+      template: {
+        compilerOptions: {
+          // 将 mdui-* 标签识别为原生自定义元素
+          isCustomElement: (tag) => tag.startsWith("mdui-"),
+        },
+      },
+    }),
+  ],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

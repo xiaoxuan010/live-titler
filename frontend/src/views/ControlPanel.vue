@@ -1,242 +1,317 @@
 <template>
-  <div class="min-h-screen bg-white p-4">
-    <!-- Connection Status Banner -->
-    <div
-      v-if="!connected"
-      class="fixed top-0 left-0 right-0 bg-red-600 text-white text-center py-2 z-50"
-    >
-      服务器连接已断开，正在重试...
-    </div>
+  <mdui-layout full-height :class="{ 'mdui-theme-dark': isDarkMode }">
+    <mdui-top-app-bar>
+      <mdui-top-app-bar-title>Live Titler - 控制面板</mdui-top-app-bar-title>
+      <div style="flex-grow: 1"></div>
+      <mdui-button-icon @click="isDarkMode = !isDarkMode">
+        <mdui-icon-dark-mode--outlined v-if="isDarkMode" />
+        <mdui-icon-light-mode--outlined v-else />
+      </mdui-button-icon>
+    </mdui-top-app-bar>
 
-    <div class="container mx-auto max-w-6xl" :class="{ 'mt-12': !connected }">
-      <h1 class="text-3xl font-bold mb-6">Live Titler - 控制面板</h1>
-
-      <!-- Key Controls -->
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <Button
-          v-for="key in keys"
-          :key="key.id"
-          :variant="
-            key.status === 'OPENED' || key.status === 'OPENING'
-              ? 'destructive'
-              : 'outline'
-          "
-          @click="toggleKey(key)"
-          :disabled="!connected"
-          class="h-16"
-        >
-          {{ key.name }}
-        </Button>
+    <!-- 左侧：仅大屏显示的 Key Controls -->
+    <mdui-layout-item placement="left" class="key-rail key-controls">
+      <div v-for="key in keys" :key="key.id">
+        <KeyButton
+          :keyObj="key"
+          :connected="connected"
+          @toggle="toggleKey"
+        ></KeyButton>
       </div>
+    </mdui-layout-item>
 
-      <!-- Progress Bars -->
-      <div class="space-y-2 mb-6">
-        <div
-          v-for="key in keys"
-          :key="`progress-${key.id}`"
-          class="h-2 bg-gray-100 rounded-full overflow-hidden"
-        >
-          <div
-            class="h-full bg-red-600 transition-all"
-            :style="{
-              width:
-                key.status === 'OPENED' || key.status === 'OPENING'
-                  ? '100%'
-                  : '0%',
-              transitionDuration: key.transition_time + 's',
-            }"
-          ></div>
-        </div>
-      </div>
+    <!-- 右侧主内容 -->
+    <mdui-layout-main>
+      <div class="page-wrap mdui-prose">
+        <!-- 小屏时显示的 Key Controls -->
+        <p>
+          <mdui-card class="key-card-sm key-controls grid">
+            <div v-for="key in keys" :key="'sm-' + key.id">
+              <KeyButton
+                :keyObj="key"
+                :connected="connected"
+                @toggle="toggleKey"
+              ></KeyButton>
+            </div>
+          </mdui-card>
+        </p>
 
-      <!-- Settings Section -->
-      <div class="mb-6">
-        <h2 class="text-2xl font-bold mb-4">设置</h2>
-        <div class="flex gap-2">
-          <router-link to="/control-panel/keys" class="inline-block">
-            <Button variant="outline"> 管理 Keys </Button>
-          </router-link>
-        </div>
-      </div>
+        <!-- 设置栏 -->
+        <p>
+          <mdui-card class="section-card">
+            <div style="display: flex; gap: 8px; align-items: center">
+              <h2 style="margin: 0; font-size: 20px; font-weight: 600">设置</h2>
+              <router-link to="/control-panel/keys">
+                <mdui-button variant="outlined">管理 Keys</mdui-button>
+              </router-link>
+            </div>
+          </mdui-card>
+        </p>
 
-      <!-- Key Panels -->
-      <div class="space-y-4">
-        <div
-          v-for="key in keys"
-          :key="`panel-${key.id}`"
-          class="border border-gray-200 rounded-lg p-4"
-        >
-          <h3 class="text-xl font-bold mb-4">{{ key.name }}</h3>
+        <!-- Key Panels with Tabs -->
+        <mdui-tabs v-model="activeTab" variant="secondary" full-width>
+          <!-- Tab headers -->
+          <mdui-tab
+            v-for="key in keys"
+            :key="`tab-${key.id}`"
+            :value="String(key.id)"
+          >
+            <KeyStatusIcon :key-obj="key" slot="icon" />
+            {{ key.name }}
+          </mdui-tab>
 
-          <!-- For Program Keys -->
-          <div v-if="isProgramKey(key)" class="space-y-4">
-            <div>
-              <label class="block text-sm font-medium mb-1">转场时间 (s)</label>
-              <input
+          <!-- Tab panels -->
+          <mdui-tab-panel
+            v-for="key in keys"
+            :key="`panel-${key.id}`"
+            :value="String(key.id)"
+            slot="panel"
+          >
+            <!-- For Program Keys -->
+            <div
+              v-if="isProgramKey(key)"
+              style="
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+                padding: 16px 0;
+              "
+            >
+              <mdui-text-field
                 type="number"
+                label="转场时间 (s)"
                 :value="key.transition_time"
                 @input="updateKeyTransition(key, $event)"
                 :disabled="!connected"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-400"
-              />
+              ></mdui-text-field>
+
+              <template v-if="getCurrentProgram(key)">
+                <mdui-text-field
+                  label="序号"
+                  :value="getCurrentProgram(key)!.num"
+                  @input="
+                    updateProgramField(
+                      getCurrentProgram(key)!,
+                      'num',
+                      ($event.target as HTMLInputElement).value,
+                    )
+                  "
+                  :disabled="!connected"
+                ></mdui-text-field>
+
+                <mdui-text-field
+                  label="表演者"
+                  :value="getCurrentProgram(key)!.person"
+                  @input="
+                    updateProgramField(
+                      getCurrentProgram(key)!,
+                      'person',
+                      ($event.target as HTMLInputElement).value,
+                    )
+                  "
+                  :disabled="!connected"
+                ></mdui-text-field>
+
+                <mdui-text-field
+                  label="节目名"
+                  :value="getCurrentProgram(key)!.name"
+                  @input="
+                    updateProgramField(
+                      getCurrentProgram(key)!,
+                      'name',
+                      ($event.target as HTMLInputElement).value,
+                    )
+                  "
+                  :disabled="!connected"
+                ></mdui-text-field>
+              </template>
             </div>
 
-            <div v-if="getCurrentProgram(key)">
-              <label class="block text-sm font-medium mb-1">序号</label>
-              <input
-                type="text"
-                :value="getCurrentProgram(key)!.num"
-                @input="
-                  updateProgramField(
-                    getCurrentProgram(key)!,
-                    'num',
-                    ($event.target as HTMLInputElement).value,
-                  )
-                "
-                :disabled="!connected"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-400"
-              />
-            </div>
-
-            <div v-if="getCurrentProgram(key)">
-              <label class="block text-sm font-medium mb-1">表演者</label>
-              <input
-                type="text"
-                :value="getCurrentProgram(key)!.person"
-                @input="
-                  updateProgramField(
-                    getCurrentProgram(key)!,
-                    'person',
-                    ($event.target as HTMLInputElement).value,
-                  )
-                "
-                :disabled="!connected"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-400"
-              />
-            </div>
-
-            <div v-if="getCurrentProgram(key)">
-              <label class="block text-sm font-medium mb-1">节目名</label>
-              <input
-                type="text"
-                :value="getCurrentProgram(key)!.name"
-                @input="
-                  updateProgramField(
-                    getCurrentProgram(key)!,
-                    'name',
-                    ($event.target as HTMLInputElement).value,
-                  )
-                "
-                :disabled="!connected"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-400"
-              />
-            </div>
-          </div>
-
-          <!-- For Lyrics Keys -->
-          <div v-else-if="isLyricsKey(key)" class="space-y-4">
-            <div>
-              <label class="block text-sm font-medium mb-1">歌曲</label>
-              <select
-                :value="key.current_preset_id"
-                @change="
-                  selectSong(
-                    key,
-                    Number(($event.target as HTMLSelectElement).value),
-                  )
-                "
-                :disabled="!connected"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-400"
-              >
-                <option
-                  v-for="song in key.songs"
-                  :key="song.id"
-                  :value="song.id"
+            <!-- For Lyrics Keys -->
+            <div
+              v-else-if="isLyricsKey(key)"
+              style="
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+                padding: 16px 0;
+              "
+            >
+              <div>
+                <label
+                  style="display: block; font-size: 14px; margin-bottom: 4px"
+                  >歌曲</label
                 >
-                  {{ song.name || `歌曲 ${song.position}` }}
-                </option>
-              </select>
-            </div>
+                <mdui-select
+                  :value="
+                    key.current_preset_id === null
+                      ? undefined
+                      : String(key.current_preset_id)
+                  "
+                  @change="onSelectSongChange(key, $event)"
+                  :disabled="!connected"
+                >
+                  <mdui-menu-item
+                    v-for="song in key.songs"
+                    :key="song.id"
+                    :value="String(song.id)"
+                  >
+                    {{ song.name || `歌曲 ${song.position}` }}
+                  </mdui-menu-item>
+                </mdui-select>
+              </div>
 
-            <div>
-              <label class="block text-sm font-medium mb-1"
-                >默认动画时间 (s)</label
-              >
-              <input
+              <mdui-text-field
                 type="number"
+                label="默认动画时间 (s)"
                 :value="key.transition_time"
                 @input="updateKeyTransition(key, $event)"
                 :disabled="!connected"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-400"
-              />
-            </div>
+              ></mdui-text-field>
 
-            <div v-if="getCurrentSong(key)">
-              <label class="block text-sm font-medium mb-1">歌词列表</label>
-              <div
-                class="border border-gray-300 rounded-md max-h-60 overflow-y-auto"
-              >
-                <div
-                  v-for="lyric in getCurrentSong(key)!.lyrics"
-                  :key="lyric.id"
-                  @click="selectLyric(key, lyric.id)"
-                  :class="[
-                    'px-3 py-2 cursor-pointer hover:bg-gray-100',
-                    getCurrentSong(key)!.current_lyric_id === lyric.id
-                      ? 'bg-gray-100'
-                      : '',
-                  ]"
+              <div v-if="getCurrentSong(key)">
+                <label
+                  style="display: block; font-size: 14px; margin-bottom: 4px"
+                  >歌词列表</label
                 >
-                  {{ lyric.text || "(空行)" }}
-                </div>
+                <mdui-list
+                  style="
+                    max-height: 240px;
+                    overflow: auto;
+                    border: 1px solid var(--mdui-color-outline-variant);
+                    border-radius: 8px;
+                  "
+                >
+                  <mdui-list-item
+                    v-for="lyric in getCurrentSong(key)!.lyrics"
+                    :key="lyric.id"
+                    @click="selectLyric(key, lyric.id)"
+                    :active="getCurrentSong(key)!.current_lyric_id === lyric.id"
+                  >
+                    {{ lyric.text || "(空行)" }}
+                  </mdui-list-item>
+                </mdui-list>
+              </div>
+
+              <div style="display: flex; gap: 8px">
+                <mdui-button
+                  @click="lyricsBack(key)"
+                  :disabled="!connected"
+                  variant="outlined"
+                  >后退</mdui-button
+                >
+                <mdui-button
+                  @click="lyricsForward(key)"
+                  :disabled="!connected"
+                  variant="outlined"
+                  >前进</mdui-button
+                >
+                <mdui-button
+                  @click="lyricsPlayForward(key)"
+                  :disabled="!connected"
+                  variant="filled"
+                  >播放前进</mdui-button
+                >
               </div>
             </div>
-
-            <div class="flex gap-2">
-              <Button @click="lyricsBack(key)" :disabled="!connected" size="sm">
-                后退
-              </Button>
-              <Button
-                @click="lyricsForward(key)"
-                :disabled="!connected"
-                size="sm"
-              >
-                前进
-              </Button>
-              <Button
-                @click="lyricsPlayForward(key)"
-                :disabled="!connected"
-                size="sm"
-              >
-                播放前进
-              </Button>
-            </div>
-          </div>
-        </div>
+          </mdui-tab-panel>
+        </mdui-tabs>
       </div>
-    </div>
-  </div>
+    </mdui-layout-main>
+  </mdui-layout>
+
+  <!-- 正在连接提示 Snackbar (首次连接失败) -->
+  <mdui-snackbar
+    :open="retryCount > 0 && !everConnected"
+    placement="top"
+    auto-close-delay="0"
+  >
+    正在连接服务器...（{{ retryCount }}）
+  </mdui-snackbar>
+
+  <!-- 断联提示 Snackbar (曾经连接成功过) -->
+  <mdui-snackbar
+    :open="!connected && everConnected"
+    placement="top"
+    auto-close-delay="0"
+  >
+    服务器连接已断开，正在重试...（{{ retryCount }}）
+  </mdui-snackbar>
+
+  <!-- 连接/重连成功提示 Snackbar -->
+  <mdui-snackbar
+    :open="reconnectedMessage"
+    placement="top"
+    closeable
+    @closed="reconnectedMessage = false"
+    auto-close-delay="3000"
+  >
+    {{ everConnectedBefore ? "服务器连接已恢复" : "连接成功" }}
+  </mdui-snackbar>
 </template>
 
 <script setup lang="ts">
 import { api, createWebSocket } from "@/api";
-import Button from "@/components/ui/Button.vue";
+import KeyButton from "@/components/ui/KeyButton.vue";
+import KeyStatusIcon from "@/components/ui/KeyStatusIcon.vue";
 import type { Key, PresetStatus, ProgramData, SongData } from "@/types";
 import { isLyricsKey, isProgramKey } from "@/types";
-import { onMounted, onUnmounted, ref } from "vue";
+import '@mdui/icons/dark-mode--outlined.js';
+import '@mdui/icons/light-mode--outlined.js';
+import "@mdui/icons/subtitles-off.js";
+import "@mdui/icons/subtitles.js";
+import "mdui/components/button.js";
+import "mdui/components/card.js";
+import "mdui/components/layout-item.js";
+import "mdui/components/layout-main.js";
+import "mdui/components/layout.js";
+import "mdui/components/menu-item.js";
+import "mdui/components/select.js";
+import "mdui/components/snackbar.js";
+import "mdui/components/tab-panel.js";
+import "mdui/components/tab.js";
+import "mdui/components/tabs.js";
+import "mdui/components/text-field.js";
+import "mdui/components/top-app-bar-title.js";
+import "mdui/components/top-app-bar.js";
+import { onMounted, onUnmounted, ref, watch } from "vue";
 
 const keys = ref<Key[]>([]);
 const connected = ref(false);
+const everConnected = ref(false); // 是否曾经连接成功过
+const everConnectedBefore = ref(false); // 在本次连接成功前是否曾经连接过(用于提示文本)
 const retryCount = ref(0);
+const reconnectedMessage = ref(false);
+const activeTab = ref<string>(); // 当前激活的 tab
 const retryDelay = 1000;
+const isDarkMode = ref(localStorage.getItem("isDarkMode") === "1");
 let ws: WebSocket | null = null;
+
+// 将 isDarkMode 存到 localStorage
+watch(isDarkMode, (newVal) => {
+  localStorage.setItem("isDarkMode", newVal ? "1" : "0");
+});
 
 async function loadKeys() {
   try {
     const data = await api.getKeys();
     keys.value = data.sort((a, b) => a.position - b.position);
+
+    // 设置默认激活第一个 tab
+    if (keys.value.length > 0 && !activeTab.value) {
+      activeTab.value = String(keys.value[0].id);
+    }
+
+    const wasDisconnected = retryCount.value > 0;
     connected.value = true;
+    everConnected.value = true;
     retryCount.value = 0;
+
+    // 如果之前有重试,说明是首次连接成功或重连成功
+    if (wasDisconnected) {
+      reconnectedMessage.value = true;
+      everConnectedBefore.value = true; // 标记为已经历过连接
+    }
   } catch (error) {
     console.error("Failed to load keys:", error);
     connected.value = false;
@@ -252,11 +327,21 @@ async function loadKeys() {
 function connectWebSocket() {
   ws = createWebSocket((data: Key[]) => {
     keys.value = data.sort((a, b) => a.position - b.position);
+
+    const wasDisconnected = !connected.value && everConnected.value;
     connected.value = true;
+    everConnected.value = true;
+
+    // WebSocket 重连成功
+    if (wasDisconnected) {
+      reconnectedMessage.value = true;
+      retryCount.value = 0;
+    }
   });
 
   ws.onclose = () => {
     connected.value = false;
+    retryCount.value++;
     console.log("WebSocket disconnected, reconnecting...");
     setTimeout(connectWebSocket, retryDelay);
   };
@@ -358,6 +443,15 @@ async function selectSong(key: Key, songId: number) {
   }
 }
 
+function onSelectSongChange(key: Key, e: Event) {
+  const raw = (e.target as any).value;
+  const val = Array.isArray(raw) ? raw[0] : raw;
+  const id = Number(val);
+  if (!Number.isNaN(id)) {
+    selectSong(key, id);
+  }
+}
+
 async function selectLyric(key: Key, lyricId: number) {
   const song = getCurrentSong(key);
   if (!song || !connected.value) return;
@@ -410,3 +504,62 @@ onUnmounted(() => {
   }
 });
 </script>
+
+<style scoped>
+.page-wrap {
+  padding: 16px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* 左侧 Key 控制区（大屏显示） */
+.key-rail {
+  width: 280px;
+  padding: 16px 8px;
+}
+
+.key-controls {
+  gap: 12px;
+}
+
+.key-controls mdui-button {
+  font-size: var(--mdui-typescale-headline-medium-size);
+}
+
+.key-card-sm {
+  padding: 12px;
+}
+
+.key-controls.grid {
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+/* 断点示例：>= 1024px 视为大屏，展示左侧栏 */
+@media (min-width: 1024px) {
+  .key-card-sm {
+    display: none;
+  }
+
+  .key-rail.key-controls {
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 1023px) {
+  .key-rail {
+    display: none;
+  }
+
+  /* 小屏时，Key Controls 使用网格布局 */
+  .key-controls.grid {
+    display: grid;
+  }
+}
+
+/* 左侧纵向按钮栈样式 */
+.section-card {
+  padding: 12px;
+  margin-bottom: 16px;
+}
+</style>

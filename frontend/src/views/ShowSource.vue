@@ -1,11 +1,19 @@
 <template>
-  <div class="fixed inset-0 overflow-hidden bg-transparent">
+  <div
+    style="position: fixed; inset: 0; overflow: hidden; background: transparent"
+  >
     <!-- Program Keys Display -->
     <div
       v-for="key in programKeys"
       :key="key.id"
       v-show="key.status === 'OPENED' || key.status === 'OPENING'"
-      class="absolute inset-0 flex items-center justify-center"
+      style="
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      "
       :style="{
         transition:
           key.status === 'OPENING' || key.status === 'CLOSING'
@@ -14,16 +22,27 @@
         opacity: key.status === 'OPENED' || key.status === 'OPENING' ? 1 : 0,
       }"
     >
-      <div class="text-center px-8" v-if="getCurrentProgram(key)">
+      <div
+        style="text-align: center; padding: 0 32px"
+        v-if="getCurrentProgram(key)"
+      >
         <div
-          class="text-6xl font-bold text-white mb-4"
-          style="text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8)"
+          style="
+            font-size: 64px;
+            font-weight: 800;
+            color: white;
+            margin-bottom: 16px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+          "
         >
           {{ getCurrentProgram(key)!.name }}
         </div>
         <div
-          class="text-4xl text-white"
-          style="text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8)"
+          style="
+            font-size: 40px;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+          "
         >
           {{ getCurrentProgram(key)!.person }}
         </div>
@@ -34,7 +53,14 @@
     <div
       v-for="key in lyricsKeys"
       :key="key.id"
-      class="absolute bottom-20 left-0 right-0 flex justify-center"
+      style="
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 80px;
+        display: flex;
+        justify-content: center;
+      "
       :style="{
         transition: shouldShowLyrics(key)
           ? 'none'
@@ -43,8 +69,14 @@
       }"
     >
       <div
-        class="text-5xl font-bold text-white px-8 text-center"
-        style="text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8)"
+        style="
+          font-size: 52px;
+          font-weight: 800;
+          color: white;
+          padding: 0 32px;
+          text-align: center;
+          text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+        "
       >
         <span
           v-for="(char, index) in getCurrentLyricText(key)"
@@ -54,7 +86,7 @@
               if (el) setCharRef(key.id, index, el as HTMLElement);
             }
           "
-          class="inline-block"
+          style="display: inline-block"
           :style="charStyles[key.id]?.[index] || {}"
         >
           {{ char }}
@@ -65,10 +97,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
 import { createWebSocket } from "@/api";
 import type { Key, ProgramData, SongData } from "@/types";
-import { isProgramKey, isLyricsKey } from "@/types";
+import { isLyricsKey, isProgramKey } from "@/types";
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 
 const keys = ref<Key[]>([]);
 const reconnectAttempts = ref(0);
@@ -237,9 +269,9 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* Ensure full screen and no scrolling */
-body,
-html {
+/* 显示页禁止滚动，充满全屏 */
+html,
+body {
   overflow: hidden;
   width: 100vw;
   height: 100vh;
