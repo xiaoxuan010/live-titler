@@ -12,6 +12,7 @@
     "@mdui/icons": "^1.0.3",
     "lyrics.js": "^0.4.1",
     "mdui": "^2.1.4",
+    "pinia": "^3.0.4",
     "vue": "^3.5.0",
     "vue-router": "^4.5.0",
     "vuedraggable": "^4.1.0"

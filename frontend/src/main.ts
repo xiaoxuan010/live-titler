@@ -6,6 +6,7 @@ import App from "./App.vue";
 import ControlPanel from "./views/ControlPanel.vue";
 import ShowSource from "./views/ShowSource.vue";
 import KeyManagement from "./views/KeyManagement.vue";
+import { createPinia } from "pinia";
 
 const router = createRouter({
   history: createWebHistory(),
@@ -32,4 +33,6 @@ const router = createRouter({
   ],
 });
 
-createApp(App).use(router).mount("#app");
+const pinia = createPinia();
+
+createApp(App).use(router).use(pinia).mount("#app");

@@ -1,5 +1,5 @@
 <template>
-  <mdui-layout full-height :class="{ 'mdui-theme-dark': isDarkMode }">
+  <mdui-layout full-height>
     <mdui-top-app-bar>
       <mdui-button-icon>
         <mdui-icon-festival--rounded />
@@ -16,8 +16,8 @@
           </mdui-button-icon>
         </router-link>
       </mdui-tooltip>
-      <mdui-button-icon @click="isDarkMode = !isDarkMode">
-        <mdui-icon-dark-mode--rounded v-if="isDarkMode" />
+      <mdui-button-icon @click="darkMode.toggle()">
+        <mdui-icon-dark-mode--rounded v-if="darkMode.isDark" />
         <mdui-icon-light-mode--rounded v-else />
       </mdui-button-icon>
     </mdui-top-app-bar>
@@ -272,6 +272,7 @@
 import { api, ApiConflictError, createWebSocket } from "@/api";
 import KeyButton from "@/components/ui/KeyButton.vue";
 import KeyStatusIcon from "@/components/ui/KeyStatusIcon.vue";
+import { useDarkModeStore } from "@/stores/darkMode";
 import type { Key, PresetStatus, ProgramData, SongData } from "@/types";
 import { isLyricsKey, isProgramKey, programsOf, songsOf } from "@/types";
 import "@mdui/icons/dark-mode--rounded.js";
@@ -297,7 +298,7 @@ import "mdui/components/text-field.js";
 import "mdui/components/tooltip.js";
 import "mdui/components/top-app-bar-title.js";
 import "mdui/components/top-app-bar.js";
-import { onMounted, onUnmounted, ref, watch } from "vue";
+import { onMounted, onUnmounted, ref } from "vue";
 
 const keys = ref<Key[]>([]);
 const connected = ref(false);
@@ -308,13 +309,9 @@ const reconnectedMessage = ref(false);
 const conflictError = ref(""); // 用于409冲突的 snackbar
 const activeTab = ref<string>(); // 当前激活的 tab
 const retryDelay = 1000;
-const isDarkMode = ref(localStorage.getItem("isDarkMode") === "1");
 let ws: WebSocket | null = null;
 
-// 将 isDarkMode 存到 localStorage
-watch(isDarkMode, (newVal) => {
-  localStorage.setItem("isDarkMode", newVal ? "1" : "0");
-});
+const darkMode = useDarkModeStore();
 
 async function loadKeys() {
   try {
