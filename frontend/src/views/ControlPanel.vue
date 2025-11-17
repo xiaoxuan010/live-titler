@@ -49,18 +49,6 @@
           </mdui-card>
         </p>
 
-        <!-- 设置栏 -->
-        <p>
-          <mdui-card class="section-card">
-            <div style="display: flex; gap: 8px; align-items: center">
-              <h2 style="margin: 0; font-size: 20px; font-weight: 600">设置</h2>
-              <router-link to="/control-panel/keys">
-                <mdui-button variant="outlined">管理 Keys</mdui-button>
-              </router-link>
-            </div>
-          </mdui-card>
-        </p>
-
         <!-- Key Panels with Tabs -->
         <mdui-tabs
           :value="activeTab"
