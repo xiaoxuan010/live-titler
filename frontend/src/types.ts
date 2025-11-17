@@ -39,17 +39,25 @@ export interface Key {
   transition_time: number;
   current_preset_id: number | null;
   version: number;
-  programs?: ProgramData[];
-  songs?: SongData[];
+  // backend may return `null` for empty relations; allow null here
+  programs?: ProgramData[] | null;
+  songs?: SongData[] | null;
 }
 
 // Type guards
-export function isProgramKey(
-  key: Key,
-): key is Key & { programs: ProgramData[] } {
-  return key.key_type === "program" && !!key.programs;
+export function isProgramKey(key: Key) {
+  return key.key_type === "program";
 }
 
-export function isLyricsKey(key: Key): key is Key & { songs: SongData[] } {
-  return key.key_type === "lyrics" && !!key.songs;
+export function isLyricsKey(key: Key) {
+  return key.key_type === "lyrics";
+}
+
+// Safe accessors that normalize possibly-null backend fields to empty arrays.
+export function programsOf(key: Key): ProgramData[] {
+  return key.programs ?? [];
+}
+
+export function songsOf(key: Key): SongData[] {
+  return key.songs ?? [];
 }

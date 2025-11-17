@@ -1,5 +1,12 @@
 import type { Key, KeyType, ProgramData, SongData, LyricData } from "../types";
 
+export class ApiConflictError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ApiConflictError";
+  }
+}
+
 const API_BASE = "/api";
 
 export const api = {
@@ -47,7 +54,7 @@ export const api = {
     });
     if (!response.ok) {
       if (response.status === 409) {
-        throw new Error("版本冲突：数据已被其他客户端修改，请刷新后重试");
+        throw new ApiConflictError("控制版本冲突，请重试");
       }
       throw new Error(`HTTP error! status: ${response.status}`);
     }

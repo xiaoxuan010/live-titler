@@ -1,11 +1,24 @@
 <template>
   <mdui-layout full-height :class="{ 'mdui-theme-dark': isDarkMode }">
     <mdui-top-app-bar>
-      <mdui-top-app-bar-title>Live Titler - 控制面板</mdui-top-app-bar-title>
+      <mdui-button-icon>
+        <mdui-icon-festival--rounded />
+      </mdui-button-icon>
+      <mdui-top-app-bar-title>
+        <span class="title">Live Titler</span>
+        <span class="title small">控制面板</span>
+      </mdui-top-app-bar-title>
       <div style="flex-grow: 1"></div>
+      <mdui-tooltip content="管理 Keys">
+        <router-link to="/control-panel/keys">
+          <mdui-button-icon>
+            <mdui-icon-playlist-add-circle--rounded />
+          </mdui-button-icon>
+        </router-link>
+      </mdui-tooltip>
       <mdui-button-icon @click="isDarkMode = !isDarkMode">
-        <mdui-icon-dark-mode--outlined v-if="isDarkMode" />
-        <mdui-icon-light-mode--outlined v-else />
+        <mdui-icon-dark-mode--rounded v-if="isDarkMode" />
+        <mdui-icon-light-mode--rounded v-else />
       </mdui-button-icon>
     </mdui-top-app-bar>
 
@@ -49,7 +62,12 @@
         </p>
 
         <!-- Key Panels with Tabs -->
-        <mdui-tabs v-model="activeTab" variant="secondary" full-width>
+        <mdui-tabs
+          :value="activeTab"
+          variant="secondary"
+          full-width
+          @change="onTabChange"
+        >
           <!-- Tab headers -->
           <mdui-tab
             v-for="key in keys"
@@ -137,29 +155,24 @@
                 padding: 16px 0;
               "
             >
-              <div>
-                <label
-                  style="display: block; font-size: 14px; margin-bottom: 4px"
-                  >歌曲</label
+              <mdui-select
+                label="当前歌曲"
+                :value="
+                  key.current_preset_id === null
+                    ? undefined
+                    : String(key.current_preset_id)
+                "
+                @change="onSelectSongChange(key, $event)"
+                :disabled="!connected"
+              >
+                <mdui-menu-item
+                  v-for="song in key.songs"
+                  :key="song.id"
+                  :value="String(song.id)"
                 >
-                <mdui-select
-                  :value="
-                    key.current_preset_id === null
-                      ? undefined
-                      : String(key.current_preset_id)
-                  "
-                  @change="onSelectSongChange(key, $event)"
-                  :disabled="!connected"
-                >
-                  <mdui-menu-item
-                    v-for="song in key.songs"
-                    :key="song.id"
-                    :value="String(song.id)"
-                  >
-                    {{ song.name || `歌曲 ${song.position}` }}
-                  </mdui-menu-item>
-                </mdui-select>
-              </div>
+                  {{ song.name || `歌曲 ${song.position}` }}
+                </mdui-menu-item>
+              </mdui-select>
 
               <mdui-text-field
                 type="number"
@@ -170,18 +183,8 @@
               ></mdui-text-field>
 
               <div v-if="getCurrentSong(key)">
-                <label
-                  style="display: block; font-size: 14px; margin-bottom: 4px"
-                  >歌词列表</label
-                >
-                <mdui-list
-                  style="
-                    max-height: 240px;
-                    overflow: auto;
-                    border: 1px solid var(--mdui-color-outline-variant);
-                    border-radius: 8px;
-                  "
-                >
+                <mdui-list>
+                  <mdui-list-subheader>歌词列表</mdui-list-subheader>
                   <mdui-list-item
                     v-for="lyric in getCurrentSong(key)!.lyrics"
                     :key="lyric.id"
@@ -189,6 +192,9 @@
                     :active="getCurrentSong(key)!.current_lyric_id === lyric.id"
                   >
                     {{ lyric.text || "(空行)" }}
+                    <span slot="end-icon"
+                      >转场时间：{{ lyric.transition_time }}s</span
+                    >
                   </mdui-list-item>
                 </mdui-list>
               </div>
@@ -206,9 +212,11 @@
                   variant="outlined"
                   >前进</mdui-button
                 >
+
                 <mdui-button
+                  title="通过动画方式播放下一行歌词，仅在 Key 已开启时可用"
                   @click="lyricsPlayForward(key)"
-                  :disabled="!connected"
+                  :disabled="!connected || key.status != 'OPENED'"
                   variant="filled"
                   >播放前进</mdui-button
                 >
@@ -248,16 +256,28 @@
   >
     {{ everConnectedBefore ? "服务器连接已恢复" : "连接成功" }}
   </mdui-snackbar>
+
+  <!-- 409 Conflict Error Snackbar -->
+  <mdui-snackbar
+    :open="!!conflictError"
+    placement="top"
+    closeable
+    @closed="conflictError = ''"
+  >
+    {{ conflictError }}
+  </mdui-snackbar>
 </template>
 
 <script setup lang="ts">
-import { api, createWebSocket } from "@/api";
+import { api, ApiConflictError, createWebSocket } from "@/api";
 import KeyButton from "@/components/ui/KeyButton.vue";
 import KeyStatusIcon from "@/components/ui/KeyStatusIcon.vue";
 import type { Key, PresetStatus, ProgramData, SongData } from "@/types";
-import { isLyricsKey, isProgramKey } from "@/types";
-import '@mdui/icons/dark-mode--outlined.js';
-import '@mdui/icons/light-mode--outlined.js';
+import { isLyricsKey, isProgramKey, programsOf, songsOf } from "@/types";
+import "@mdui/icons/dark-mode--rounded.js";
+import "@mdui/icons/festival--rounded.js";
+import "@mdui/icons/light-mode--rounded.js";
+import "@mdui/icons/playlist-add-circle--rounded.js";
 import "@mdui/icons/subtitles-off.js";
 import "@mdui/icons/subtitles.js";
 import "mdui/components/button.js";
@@ -265,6 +285,8 @@ import "mdui/components/card.js";
 import "mdui/components/layout-item.js";
 import "mdui/components/layout-main.js";
 import "mdui/components/layout.js";
+import "mdui/components/list-item.js";
+import "mdui/components/list.js";
 import "mdui/components/menu-item.js";
 import "mdui/components/select.js";
 import "mdui/components/snackbar.js";
@@ -272,6 +294,7 @@ import "mdui/components/tab-panel.js";
 import "mdui/components/tab.js";
 import "mdui/components/tabs.js";
 import "mdui/components/text-field.js";
+import "mdui/components/tooltip.js";
 import "mdui/components/top-app-bar-title.js";
 import "mdui/components/top-app-bar.js";
 import { onMounted, onUnmounted, ref, watch } from "vue";
@@ -282,6 +305,7 @@ const everConnected = ref(false); // 是否曾经连接成功过
 const everConnectedBefore = ref(false); // 在本次连接成功前是否曾经连接过(用于提示文本)
 const retryCount = ref(0);
 const reconnectedMessage = ref(false);
+const conflictError = ref(""); // 用于409冲突的 snackbar
 const activeTab = ref<string>(); // 当前激活的 tab
 const retryDelay = 1000;
 const isDarkMode = ref(localStorage.getItem("isDarkMode") === "1");
@@ -347,6 +371,15 @@ function connectWebSocket() {
   };
 }
 
+// Handle tab change emitted by mdui-tabs
+function onTabChange(e: Event) {
+  const ev = e as CustomEvent;
+  const val = ev?.detail?.value ?? (e.target as any)?.value;
+  if (val !== undefined && val !== null) {
+    activeTab.value = String(val);
+  }
+}
+
 async function updateKeyStatus(key: Key, status: PresetStatus) {
   if (!connected.value) return;
 
@@ -354,9 +387,13 @@ async function updateKeyStatus(key: Key, status: PresetStatus) {
     await api.updateKey(key.id, { status, version: key.version });
     key.version++;
   } catch (error) {
-    console.error("Failed to update key status:", error);
-    connected.value = false;
-    setTimeout(loadKeys, retryDelay);
+    if (error instanceof ApiConflictError) {
+      conflictError.value = error.message;
+    } else {
+      console.error("Failed to update key status:", error);
+      connected.value = false;
+      setTimeout(loadKeys, retryDelay);
+    }
   }
 }
 
@@ -371,7 +408,11 @@ async function updateKeyTransition(key: Key, event: Event) {
     });
     key.version++;
   } catch (error) {
-    console.error("Failed to update transition time:", error);
+    if (error instanceof ApiConflictError) {
+      conflictError.value = error.message;
+    } else {
+      console.error("Failed to update transition time:", error);
+    }
   }
 }
 
@@ -400,19 +441,23 @@ function toggleKey(key: Key) {
 }
 
 function getCurrentProgram(key: Key): ProgramData | undefined {
-  if (!isProgramKey(key) || !key.programs) return undefined;
+  if (!isProgramKey(key)) return undefined;
+  const progs = programsOf(key);
+  if (progs.length === 0) return undefined;
   if (key.current_preset_id === null) {
-    return key.programs[0];
+    return progs[0];
   }
-  return key.programs.find((p) => p.id === key.current_preset_id);
+  return progs.find((p) => p.id === key.current_preset_id);
 }
 
 function getCurrentSong(key: Key): SongData | undefined {
-  if (!isLyricsKey(key) || !key.songs) return undefined;
+  if (!isLyricsKey(key)) return undefined;
+  const songs = songsOf(key);
+  if (songs.length === 0) return undefined;
   if (key.current_preset_id === null) {
-    return key.songs[0];
+    return songs[0];
   }
-  return key.songs.find((s) => s.id === key.current_preset_id);
+  return songs.find((s) => s.id === key.current_preset_id);
 }
 
 async function updateProgramField(
@@ -439,7 +484,11 @@ async function selectSong(key: Key, songId: number) {
     });
     key.version++;
   } catch (error) {
-    console.error("Failed to select song:", error);
+    if (error instanceof ApiConflictError) {
+      conflictError.value = error.message;
+    } else {
+      console.error("Failed to select song:", error);
+    }
   }
 }
 
@@ -506,6 +555,29 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+@font-face {
+  font-family: "Roboto";
+  src: url("/Roboto-Regular.woff2") format("woff2");
+}
+
+mdui-layout {
+  font-family:
+    Roboto,
+    Noto Sans SC,
+    PingFang SC,
+    Lantinghei SC,
+    Microsoft Yahei,
+    Hiragino Sans GB,
+    "Microsoft Sans Serif",
+    WenQuanYi Micro Hei,
+    sans-serif;
+}
+
+.title.small {
+  font-size: 93%;
+  margin-left: 1rem;
+}
+
 .page-wrap {
   padding: 16px;
   max-width: 1200px;

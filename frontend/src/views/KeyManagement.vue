@@ -1,246 +1,235 @@
 <template>
-  <div>
-    <!-- 顶部 App Bar -->
-    <mdui-layout full-height>
-      <mdui-top-app-bar>
-        <mdui-button-icon @click="$router.push('/control-panel')">
-          <mdui-icon-arrow-back></mdui-icon-arrow-back>
-        </mdui-button-icon>
-        <mdui-top-app-bar-title>Key 管理</mdui-top-app-bar-title>
-      </mdui-top-app-bar>
-      
-      <mdui-layout-main>
-        <!-- 新增 Key -->
-        <div style="padding: 16px; max-width: 1200px; margin: 0 auto">
-          <mdui-card style="padding: 16px; margin-bottom: 16px">
-            <h2 style="margin: 0 0 16px 0; font-size: 18px; font-weight: 600">
-              创建新 Key
-            </h2>
-            <div style="display: flex; gap: 12px; align-items: flex-end">
-              <mdui-text-field
-                v-model="newKeyName"
-                label="Key 名称"
-                style="flex: 1"
-              ></mdui-text-field>
+  <!-- 顶部 App Bar -->
+  <mdui-layout full-height>
+    <mdui-top-app-bar>
+      <mdui-button-icon @click="$router.push('/control-panel')">
+        <mdui-icon-arrow-back></mdui-icon-arrow-back>
+      </mdui-button-icon>
+      <mdui-top-app-bar-title>Key 管理</mdui-top-app-bar-title>
+    </mdui-top-app-bar>
 
-              <mdui-select v-model="newKeyType" style="width: 180px">
-                <mdui-menu-item value="program">节目信息</mdui-menu-item>
-                <mdui-menu-item value="lyrics">歌词</mdui-menu-item>
-              </mdui-select>
+    <mdui-layout-main>
+      <!-- 新增 Key -->
+      <div style="padding: 16px; max-width: 1200px; margin: 0 auto">
+        <mdui-card style="padding: 16px; margin-bottom: 16px">
+          <h2 style="margin: 0 0 16px 0; font-size: 18px; font-weight: 600">
+            创建新 Key
+          </h2>
+          <div style="display: flex; gap: 12px; align-items: flex-end">
+            <mdui-text-field
+              v-model="newKeyName"
+              label="Key 名称"
+              style="flex: 1"
+            ></mdui-text-field>
 
-              <mdui-button
-                @click="createKey"
-                :disabled="!newKeyName || loading"
-                :loading="loading"
-              >
-                创建
-              </mdui-button>
-            </div>
-          </mdui-card>
+            <mdui-select v-model="newKeyType" style="width: 180px">
+              <mdui-menu-item value="program">节目信息</mdui-menu-item>
+              <mdui-menu-item value="lyrics">歌词</mdui-menu-item>
+            </mdui-select>
 
-          <!-- Key 列表 -->
-          <draggable
-            v-model="keys"
-            item-key="id"
-            @start="drag = true"
-            @end="onDragEnd"
-            v-bind="dragOptions"
-          >
-            <template #item="{ element: key }">
-              <div
-                class="key-item"
-                style="
-                  border: 1px solid var(--mdui-color-outline-variant);
-                  border-radius: 8px;
-                  margin-bottom: 8px;
-                  padding: 8px;
-                  background: var(--mdui-color-surface);
-                "
-              >
-                <div style="width: 100%">
-                  <div
-                    style="
-                      display: flex;
-                      justify-content: space-between;
-                      align-items: center;
-                      margin-bottom: 8px;
-                    "
-                  >
-                    <div style="display: flex; align-items: center; flex: 1">
-                      <!-- Drag handle -->
-                      <mdui-button-icon
-                        class="drag-handle"
-                        style="cursor: move"
+            <mdui-button
+              @click="createKey"
+              :disabled="!newKeyName || loading"
+              :loading="loading"
+            >
+              创建
+            </mdui-button>
+          </div>
+        </mdui-card>
+
+        <!-- Key 列表 -->
+        <draggable
+          v-model="keys"
+          item-key="id"
+          @start="drag = true"
+          @end="onDragEnd"
+          v-bind="dragOptions"
+        >
+          <template #item="{ element: key }">
+            <div
+              class="key-item"
+              style="
+                border: 1px solid var(--mdui-color-outline-variant);
+                border-radius: 8px;
+                margin-bottom: 8px;
+                padding: 8px;
+                background: var(--mdui-color-surface);
+              "
+            >
+              <div style="width: 100%">
+                <div
+                  style="
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 8px;
+                  "
+                >
+                  <div style="display: flex; align-items: center; flex: 1">
+                    <!-- Drag handle -->
+                    <mdui-button-icon class="drag-handle" style="cursor: move">
+                      <mdui-icon-drag-indicator></mdui-icon-drag-indicator>
+                    </mdui-button-icon>
+
+                    <div style="flex: 1; margin-left: 8px">
+                      <div
+                        style="
+                          font-size: 16px;
+                          font-weight: 600;
+                          margin-bottom: 4px;
+                        "
                       >
-                        <mdui-icon-drag-indicator></mdui-icon-drag-indicator>
-                      </mdui-button-icon>
-
-                      <div style="flex: 1; margin-left: 8px">
-                        <div
-                          style="
-                            font-size: 16px;
-                            font-weight: 600;
-                            margin-bottom: 4px;
-                          "
-                        >
-                          {{ key.name }}
-                        </div>
-                        <div
-                          style="
-                            font-size: 13px;
-                            color: var(--mdui-color-on-surface-variant);
-                          "
-                        >
-                          类型:
-                          {{
-                            key.key_type === "program" ? "节目信息" : "歌词"
-                          }}
-                          | 位置: {{ key.position }} | 状态: {{ key.status }} |
-                          版本:
-                          {{ key.version }}
-                        </div>
+                        {{ key.name }}
                       </div>
-                    </div>
-
-                    <div style="display: flex; gap: 8px">
-                      <mdui-button-icon
-                        @click="startEdit(key)"
-                        :disabled="loading"
+                      <div
+                        style="
+                          font-size: 13px;
+                          color: var(--mdui-color-on-surface-variant);
+                        "
                       >
-                        <mdui-icon-edit></mdui-icon-edit>
-                      </mdui-button-icon>
-
-                      <mdui-button-icon
-                        @click="confirmDelete(key)"
-                        :disabled="loading"
-                      >
-                        <mdui-icon-delete></mdui-icon-delete>
-                      </mdui-button-icon>
+                        类型:
+                        {{ key.key_type === "program" ? "节目信息" : "歌词" }}
+                        | 位置: {{ key.position }} | 状态: {{ key.status }} |
+                        版本:
+                        {{ key.version }}
+                      </div>
                     </div>
                   </div>
 
-                  <!-- Key details -->
+                  <div style="display: flex; gap: 8px">
+                    <mdui-button-icon
+                      @click="startEdit(key)"
+                      :disabled="loading"
+                    >
+                      <mdui-icon-edit></mdui-icon-edit>
+                    </mdui-button-icon>
+
+                    <mdui-button-icon
+                      @click="confirmDelete(key)"
+                      :disabled="loading"
+                    >
+                      <mdui-icon-delete></mdui-icon-delete>
+                    </mdui-button-icon>
+                  </div>
+                </div>
+
+                <!-- Key details -->
+                <div
+                  style="
+                    font-size: 13px;
+                    color: var(--mdui-color-on-surface-variant);
+                    margin-top: 8px;
+                    margin-left: 48px;
+                  "
+                >
                   <div
-                    style="
-                      font-size: 13px;
-                      color: var(--mdui-color-on-surface-variant);
-                      margin-top: 8px;
-                      margin-left: 48px;
-                    "
+                    v-if="key.key_type === 'program'"
+                    style="display: flex; gap: 8px; flex-wrap: wrap"
                   >
-                    <div
-                      v-if="key.key_type === 'program' && key.programs"
-                      style="display: flex; gap: 8px; flex-wrap: wrap"
-                    >
-                      <strong>节目列表 ({{ key.programs.length }}):</strong>
-                      <mdui-chip v-for="prog in key.programs" :key="prog.id">{{
-                        prog.name
-                      }}</mdui-chip>
-                    </div>
-                    <div
-                      v-if="key.key_type === 'lyrics' && key.songs"
-                      style="display: flex; gap: 8px; flex-wrap: wrap"
-                    >
-                      <strong>歌曲列表 ({{ key.songs.length }}):</strong>
-                      <mdui-chip v-for="song in key.songs" :key="song.id">{{
-                        song.name
-                      }}</mdui-chip>
-                    </div>
+                    <strong>节目列表 ({{ programsOf(key).length }}):</strong>
+                    <mdui-chip v-for="prog in programsOf(key)" :key="prog.id">{{
+                      prog.name
+                    }}</mdui-chip>
+                  </div>
+                  <div
+                    v-if="key.key_type === 'lyrics'"
+                    style="display: flex; gap: 8px; flex-wrap: wrap"
+                  >
+                    <strong>歌曲列表 ({{ songsOf(key).length }}):</strong>
+                    <mdui-chip v-for="song in songsOf(key)" :key="song.id">{{
+                      song.name
+                    }}</mdui-chip>
                   </div>
                 </div>
               </div>
-            </template>
-          </draggable>
-        </div>
-      </mdui-layout-main>
-    </mdui-layout>
+            </div>
+          </template>
+        </draggable>
+      </div>
+    </mdui-layout-main>
+  </mdui-layout>
 
-    <!-- 编辑 Key 对话框 -->
-    <mdui-dialog
-      :open="!!editingKey"
-      @closed="cancelEdit"
-      close-on-overlay-click
-      headline="编辑 Key"
+  <!-- 编辑 Key 对话框 -->
+  <mdui-dialog
+    :open="!!editingKey"
+    @closed="cancelEdit"
+    close-on-overlay-click
+    headline="编辑 Key"
+  >
+    <mdui-text-field
+      v-model="editForm.name"
+      label="名称"
+      style="margin-bottom: 16px"
+    ></mdui-text-field>
+
+    <mdui-select
+      v-model="editForm.key_type"
+      label="类型"
+      style="margin-bottom: 16px"
     >
-      <mdui-text-field
-        v-model="editForm.name"
-        label="名称"
-        style="margin-bottom: 16px"
-      ></mdui-text-field>
+      <mdui-menu-item value="program">节目信息</mdui-menu-item>
+      <mdui-menu-item value="lyrics">歌词</mdui-menu-item>
+    </mdui-select>
 
-      <mdui-select
-        v-model="editForm.key_type"
-        label="类型"
-        style="margin-bottom: 16px"
-      >
-        <mdui-menu-item value="program">节目信息</mdui-menu-item>
-        <mdui-menu-item value="lyrics">歌词</mdui-menu-item>
-      </mdui-select>
+    <mdui-text-field
+      v-model.number="editForm.transition_time"
+      type="number"
+      label="转场时间 (秒)"
+      step="0.1"
+      min="0"
+    ></mdui-text-field>
 
-      <mdui-text-field
-        v-model.number="editForm.transition_time"
-        type="number"
-        label="转场时间 (秒)"
-        step="0.1"
-        min="0"
-      ></mdui-text-field>
-
-      <mdui-button slot="action" variant="text" @click="cancelEdit"
-        >取消</mdui-button
-      >
-      <mdui-button
-        slot="action"
-        variant="text"
-        @click="saveEdit"
-        :disabled="!editForm.name"
-        >保存</mdui-button
-      >
-    </mdui-dialog>
-
-    <!-- 删除 Key 确认对话框 -->
-    <mdui-dialog
-      :open="!!deletingKey"
-      @closed="cancelDelete"
-      close-on-overlay-click
-      headline="确认删除"
+    <mdui-button slot="action" variant="text" @click="cancelEdit"
+      >取消</mdui-button
     >
-      <p v-if="deletingKey">
-        确定要删除 Key "{{ deletingKey.name }}"
-        吗？此操作将同时删除相关的所有数据，且无法撤销。
-      </p>
-
-      <mdui-button slot="action" variant="text" @click="cancelDelete"
-        >取消</mdui-button
-      >
-      <mdui-button slot="action" variant="text" @click="executeDelete"
-        >删除</mdui-button
-      >
-    </mdui-dialog>
-
-    <!-- Snackbar for messages -->
-    <mdui-snackbar
-      :open="!!error"
-      placement="top"
-      closeable
-      @closed="error = ''"
+    <mdui-button
+      slot="action"
+      variant="text"
+      @click="saveEdit"
+      :disabled="!editForm.name"
+      >保存</mdui-button
     >
-      {{ error }}
-    </mdui-snackbar>
+  </mdui-dialog>
 
-    <mdui-snackbar
-      :open="!!successMessage"
-      placement="top"
-      closeable
-      @closed="successMessage = ''"
+  <!-- 删除 Key 确认对话框 -->
+  <mdui-dialog
+    :open="!!deletingKey"
+    @closed="cancelDelete"
+    close-on-overlay-click
+    headline="确认删除"
+  >
+    <p v-if="deletingKey">
+      确定要删除 Key "{{ deletingKey.name }}"
+      吗？此操作将同时删除相关的所有数据，且无法撤销。
+    </p>
+
+    <mdui-button slot="action" variant="text" @click="cancelDelete"
+      >取消</mdui-button
     >
-      {{ successMessage }}
-    </mdui-snackbar>
-  </div>
+    <mdui-button slot="action" variant="text" @click="executeDelete"
+      >删除</mdui-button
+    >
+  </mdui-dialog>
+
+  <!-- Snackbar for messages -->
+  <mdui-snackbar :open="!!error" placement="top" closeable @closed="error = ''">
+    {{ error }}
+  </mdui-snackbar>
+
+  <mdui-snackbar
+    :open="!!successMessage"
+    placement="top"
+    closeable
+    @closed="successMessage = ''"
+  >
+    {{ successMessage }}
+  </mdui-snackbar>
 </template>
 
 <script setup lang="ts">
 import { api } from "@/api";
 import type { Key, KeyType } from "@/types";
+import { programsOf, songsOf } from "@/types";
 import "@mdui/icons/arrow-back.js";
 import "@mdui/icons/delete.js";
 import "@mdui/icons/drag-indicator.js";

@@ -99,7 +99,7 @@
 <script setup lang="ts">
 import { createWebSocket } from "@/api";
 import type { Key, ProgramData, SongData } from "@/types";
-import { isLyricsKey, isProgramKey } from "@/types";
+import { isLyricsKey, isProgramKey, programsOf, songsOf } from "@/types";
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 
 const keys = ref<Key[]>([]);
@@ -157,19 +157,23 @@ function connectWebSocket() {
 }
 
 function getCurrentProgram(key: Key): ProgramData | undefined {
-  if (!isProgramKey(key) || !key.programs) return undefined;
+  if (!isProgramKey(key)) return undefined;
+  const progs = programsOf(key);
+  if (progs.length === 0) return undefined;
   if (key.current_preset_id === null) {
-    return key.programs[0];
+    return progs[0];
   }
-  return key.programs.find((p) => p.id === key.current_preset_id);
+  return progs.find((p) => p.id === key.current_preset_id);
 }
 
 function getCurrentSong(key: Key): SongData | undefined {
-  if (!isLyricsKey(key) || !key.songs) return undefined;
+  if (!isLyricsKey(key)) return undefined;
+  const songs = songsOf(key);
+  if (songs.length === 0) return undefined;
   if (key.current_preset_id === null) {
-    return key.songs[0];
+    return songs[0];
   }
-  return key.songs.find((s) => s.id === key.current_preset_id);
+  return songs.find((s) => s.id === key.current_preset_id);
 }
 
 function getCurrentLyricText(key: Key): string {

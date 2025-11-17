@@ -31,6 +31,7 @@ export default defineConfig({
         ws: true,
       },
     },
+    allowedHosts: true,
   },
   build: {
     outDir: "dist",

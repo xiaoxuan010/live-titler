@@ -27,7 +27,7 @@ const props = defineProps<Props>();
 const emit = defineEmits(["toggle"]);
 
 const buttonVariant = computed(() =>
-  props.keyObj.status === "OPENED" || props.keyObj.status === "OPENING"
+  props.keyObj.status === "OPENED" || props.keyObj.status === "OPENING" || props.keyObj.status === "PLAYING_FORWARD"
     ? "filled"
     : "outlined",
 );

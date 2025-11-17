@@ -19,8 +19,8 @@ type KeyResponse struct {
 	TransitionTime  float64           `json:"transition_time"`
 	CurrentPresetID *uint             `json:"current_preset_id"`
 	Version         int               `json:"version"`
-	Programs        []ProgramResponse `json:"programs,omitempty"`
-	Songs           []SongResponse    `json:"songs,omitempty"`
+	Programs        []ProgramResponse `json:"programs"`
+	Songs           []SongResponse    `json:"songs"`
 }
 
 type ProgramResponse struct {
@@ -36,7 +36,7 @@ type SongResponse struct {
 	Name           string          `json:"name"`
 	CurrentLyricID *uint           `json:"current_lyric_id"`
 	Position       int             `json:"position"`
-	Lyrics         []LyricResponse `json:"lyrics,omitempty"`
+	Lyrics         []LyricResponse `json:"lyrics"`
 }
 
 type LyricResponse struct {
@@ -65,9 +65,12 @@ func getKeys(w http.ResponseWriter, r *http.Request) {
 			TransitionTime:  key.TransitionTime,
 			CurrentPresetID: key.CurrentPresetID,
 			Version:         key.Version,
+			Programs:        []ProgramResponse{},
+			Songs:           []SongResponse{},
 		}
 
-		if key.KeyType == "program" {
+		switch key.KeyType {
+		case "program":
 			var programs []Program
 			db.Where("key_id = ?", key.ID).Order("position").Find(&programs)
 			for _, prog := range programs {
@@ -79,7 +82,7 @@ func getKeys(w http.ResponseWriter, r *http.Request) {
 					Position: prog.Position,
 				})
 			}
-		} else if key.KeyType == "lyrics" {
+		case "lyrics":
 			var songs []Song
 			db.Where("key_id = ?", key.ID).Order("position").Find(&songs)
 			for _, song := range songs {
@@ -91,6 +94,7 @@ func getKeys(w http.ResponseWriter, r *http.Request) {
 					Name:           song.Name,
 					CurrentLyricID: song.CurrentLyricID,
 					Position:       song.Position,
+					Lyrics:         []LyricResponse{},
 				}
 				for _, lyric := range lyrics {
 					songResp.Lyrics = append(songResp.Lyrics, LyricResponse{
@@ -135,6 +139,8 @@ func getKey(w http.ResponseWriter, r *http.Request) {
 		TransitionTime:  key.TransitionTime,
 		CurrentPresetID: key.CurrentPresetID,
 		Version:         key.Version,
+		Programs:        []ProgramResponse{},
+		Songs:           []SongResponse{},
 	}
 
 	if key.KeyType == "program" {
@@ -161,6 +167,7 @@ func getKey(w http.ResponseWriter, r *http.Request) {
 				Name:           song.Name,
 				CurrentLyricID: song.CurrentLyricID,
 				Position:       song.Position,
+				Lyrics:         []LyricResponse{},
 			}
 			for _, lyric := range lyrics {
 				songResp.Lyrics = append(songResp.Lyrics, LyricResponse{
@@ -228,9 +235,23 @@ func createKey(w http.ResponseWriter, r *http.Request) {
 
 	broadcastUpdate()
 
+	// Return a normalized KeyResponse so frontend always receives programs/songs fields
+	keyResp := KeyResponse{
+		ID:              key.ID,
+		Name:            key.Name,
+		Position:        key.Position,
+		KeyType:         key.KeyType,
+		Status:          key.Status,
+		TransitionTime:  key.TransitionTime,
+		CurrentPresetID: key.CurrentPresetID,
+		Version:         key.Version,
+		Programs:        []ProgramResponse{},
+		Songs:           []SongResponse{},
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(key)
+	json.NewEncoder(w).Encode(keyResp)
 }
 
 // Update key
@@ -389,9 +410,12 @@ func broadcastUpdate() {
 			TransitionTime:  key.TransitionTime,
 			CurrentPresetID: key.CurrentPresetID,
 			Version:         key.Version,
+			Programs:        []ProgramResponse{},
+			Songs:           []SongResponse{},
 		}
 
-		if key.KeyType == "program" {
+		switch key.KeyType {
+		case "program":
 			var programs []Program
 			db.Where("key_id = ?", key.ID).Order("position").Find(&programs)
 			for _, prog := range programs {
@@ -403,7 +427,7 @@ func broadcastUpdate() {
 					Position: prog.Position,
 				})
 			}
-		} else if key.KeyType == "lyrics" {
+		case "lyrics":
 			var songs []Song
 			db.Where("key_id = ?", key.ID).Order("position").Find(&songs)
 			for _, song := range songs {
@@ -415,6 +439,7 @@ func broadcastUpdate() {
 					Name:           song.Name,
 					CurrentLyricID: song.CurrentLyricID,
 					Position:       song.Position,
+					Lyrics:         []LyricResponse{},
 				}
 				for _, lyric := range lyrics {
 					songResp.Lyrics = append(songResp.Lyrics, LyricResponse{
