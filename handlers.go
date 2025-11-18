@@ -782,3 +782,457 @@ func deleteLyric(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
 }
+
+// Reorder programs
+func reorderPrograms(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		IDs []uint `json:"ids"` // New order of program IDs
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Update positions in transaction
+	err := db.Transaction(func(tx *gorm.DB) error {
+		for i, progID := range input.IDs {
+			if err := tx.Model(&Program{}).Where("id = ?", progID).Update("position", -(i + 1)).Error; err != nil {
+				return err
+			}
+		}
+		for i, progID := range input.IDs {
+			if err := tx.Model(&Program{}).Where("id = ?", progID).Update("position", i).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	broadcastUpdate()
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
+}
+
+// Reorder lyrics
+func reorderLyrics(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		IDs []uint `json:"ids"` // New order of lyric IDs
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Update positions in transaction
+	err := db.Transaction(func(tx *gorm.DB) error {
+		for i, lyricID := range input.IDs {
+			if err := tx.Model(&Lyric{}).Where("id = ?", lyricID).Update("position", -(i + 1)).Error; err != nil {
+				return err
+			}
+		}
+		for i, lyricID := range input.IDs {
+			if err := tx.Model(&Lyric{}).Where("id = ?", lyricID).Update("position", i).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	broadcastUpdate()
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
+}
+
+// CSV Import for Programs
+func importProgramsCSV(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	keyID, err := strconv.ParseUint(vars["id"], 10, 32)
+	if err != nil {
+		http.Error(w, "Invalid key ID", http.StatusBadRequest)
+		return
+	}
+
+	var input struct {
+		CSV string `json:"csv"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Parse CSV (simple parsing, expects: num,name,person per line)
+	lines := parseCSVLines(input.CSV)
+	if len(lines) == 0 {
+		http.Error(w, "Empty CSV", http.StatusBadRequest)
+		return
+	}
+
+	err = db.Transaction(func(tx *gorm.DB) error {
+		// Delete existing programs
+		if err := tx.Where("key_id = ?", keyID).Delete(&Program{}).Error; err != nil {
+			return err
+		}
+
+		// Create new programs
+		for i, line := range lines {
+			fields := parseCSVLine(line)
+			if len(fields) < 3 {
+				continue // Skip invalid lines
+			}
+
+			program := Program{
+				KeyID:    uint(keyID),
+				Num:      fields[0],
+				Name:     fields[1],
+				Person:   fields[2],
+				Position: i,
+			}
+
+			if err := tx.Create(&program).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	broadcastUpdate()
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
+}
+
+// CSV Export for Programs
+func exportProgramsCSV(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	keyID, err := strconv.ParseUint(vars["id"], 10, 32)
+	if err != nil {
+		http.Error(w, "Invalid key ID", http.StatusBadRequest)
+		return
+	}
+
+	var programs []Program
+	if err := db.Where("key_id = ?", keyID).Order("position").Find(&programs).Error; err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Generate CSV
+	csv := ""
+	for _, prog := range programs {
+		csv += escapeCSVField(prog.Num) + "," + escapeCSVField(prog.Name) + "," + escapeCSVField(prog.Person) + "\n"
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"csv": csv})
+}
+
+// CSV Import for Lyrics
+func importLyricsCSV(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	songID, err := strconv.ParseUint(vars["id"], 10, 32)
+	if err != nil {
+		http.Error(w, "Invalid song ID", http.StatusBadRequest)
+		return
+	}
+
+	var input struct {
+		CSV string `json:"csv"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Parse CSV (expects: text,transition_time per line)
+	lines := parseCSVLines(input.CSV)
+	if len(lines) == 0 {
+		http.Error(w, "Empty CSV", http.StatusBadRequest)
+		return
+	}
+
+	err = db.Transaction(func(tx *gorm.DB) error {
+		// Delete existing lyrics
+		if err := tx.Where("song_id = ?", songID).Delete(&Lyric{}).Error; err != nil {
+			return err
+		}
+
+		// Create new lyrics
+		for i, line := range lines {
+			fields := parseCSVLine(line)
+			if len(fields) < 1 {
+				continue // Skip empty lines
+			}
+
+			text := fields[0]
+			transitionTime := 1.0
+			if len(fields) >= 2 {
+				if tt, err := strconv.ParseFloat(fields[1], 64); err == nil {
+					transitionTime = tt
+				}
+			}
+
+			lyric := Lyric{
+				SongID:         uint(songID),
+				Text:           text,
+				TransitionTime: transitionTime,
+				Position:       i,
+			}
+
+			if err := tx.Create(&lyric).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	broadcastUpdate()
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
+}
+
+// CSV Export for Lyrics
+func exportLyricsCSV(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	songID, err := strconv.ParseUint(vars["id"], 10, 32)
+	if err != nil {
+		http.Error(w, "Invalid song ID", http.StatusBadRequest)
+		return
+	}
+
+	var lyrics []Lyric
+	if err := db.Where("song_id = ?", songID).Order("position").Find(&lyrics).Error; err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Generate CSV
+	csv := ""
+	for _, lyric := range lyrics {
+		csv += escapeCSVField(lyric.Text) + "," + strconv.FormatFloat(lyric.TransitionTime, 'f', 1, 64) + "\n"
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"csv": csv})
+}
+
+// JSON Export for Key
+func exportKeyJSON(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	keyID, err := strconv.ParseUint(vars["id"], 10, 32)
+	if err != nil {
+		http.Error(w, "Invalid key ID", http.StatusBadRequest)
+		return
+	}
+
+	var key Key
+	if err := db.First(&key, keyID).Error; err != nil {
+		http.Error(w, "Key not found", http.StatusNotFound)
+		return
+	}
+
+	keyResp := buildKeyResponse(key)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(keyResp)
+}
+
+// JSON Import for Key
+func importKeyJSON(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	keyID, err := strconv.ParseUint(vars["id"], 10, 32)
+	if err != nil {
+		http.Error(w, "Invalid key ID", http.StatusBadRequest)
+		return
+	}
+
+	var input KeyResponse
+
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	err = db.Transaction(func(tx *gorm.DB) error {
+		// Update key metadata
+		var key Key
+		if err := tx.First(&key, keyID).Error; err != nil {
+			return err
+		}
+
+		key.Name = input.Name
+		key.KeyType = input.KeyType
+		key.TransitionTime = input.TransitionTime
+
+		if err := tx.Save(&key).Error; err != nil {
+			return err
+		}
+
+		if key.KeyType == "program" {
+			// Delete existing programs
+			if err := tx.Where("key_id = ?", keyID).Delete(&Program{}).Error; err != nil {
+				return err
+			}
+
+			// Create new programs
+			for _, prog := range input.Programs {
+				program := Program{
+					KeyID:    uint(keyID),
+					Num:      prog.Num,
+					Name:     prog.Name,
+					Person:   prog.Person,
+					Position: prog.Position,
+				}
+				if err := tx.Create(&program).Error; err != nil {
+					return err
+				}
+			}
+		} else if key.KeyType == "lyrics" {
+			// Delete existing songs
+			if err := tx.Where("key_id = ?", keyID).Delete(&Song{}).Error; err != nil {
+				return err
+			}
+
+			// Create new songs
+			for _, song := range input.Songs {
+				newSong := Song{
+					KeyID:    uint(keyID),
+					Name:     song.Name,
+					Position: song.Position,
+				}
+				if err := tx.Create(&newSong).Error; err != nil {
+					return err
+				}
+
+				// Create lyrics
+				for _, lyric := range song.Lyrics {
+					newLyric := Lyric{
+						SongID:         newSong.ID,
+						Text:           lyric.Text,
+						TransitionTime: lyric.TransitionTime,
+						Position:       lyric.Position,
+					}
+					if err := tx.Create(&newLyric).Error; err != nil {
+						return err
+					}
+				}
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	broadcastUpdate()
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
+}
+
+// CSV helper functions
+func parseCSVLines(csv string) []string {
+	lines := []string{}
+	currentLine := ""
+	inQuotes := false
+
+	for i := 0; i < len(csv); i++ {
+		c := csv[i]
+		if c == '"' {
+			inQuotes = !inQuotes
+		} else if (c == '\n' || c == '\r') && !inQuotes {
+			if currentLine != "" {
+				lines = append(lines, currentLine)
+				currentLine = ""
+			}
+		} else {
+			currentLine += string(c)
+		}
+	}
+
+	if currentLine != "" {
+		lines = append(lines, currentLine)
+	}
+
+	return lines
+}
+
+func parseCSVLine(line string) []string {
+	fields := []string{}
+	currentField := ""
+	inQuotes := false
+
+	for i := 0; i < len(line); i++ {
+		c := line[i]
+		if c == '"' {
+			if inQuotes && i+1 < len(line) && line[i+1] == '"' {
+				currentField += "\""
+				i++
+			} else {
+				inQuotes = !inQuotes
+			}
+		} else if c == ',' && !inQuotes {
+			fields = append(fields, currentField)
+			currentField = ""
+		} else {
+			currentField += string(c)
+		}
+	}
+
+	fields = append(fields, currentField)
+	return fields
+}
+
+func escapeCSVField(field string) string {
+	needsQuotes := false
+	for _, c := range field {
+		if c == ',' || c == '"' || c == '\n' || c == '\r' {
+			needsQuotes = true
+			break
+		}
+	}
+
+	if needsQuotes {
+		escaped := "\""
+		for _, c := range field {
+			if c == '"' {
+				escaped += "\"\""
+			} else {
+				escaped += string(c)
+			}
+		}
+		escaped += "\""
+		return escaped
+	}
+
+	return field
+}

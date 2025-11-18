@@ -98,8 +98,17 @@
 
                   <div style="display: flex; gap: 8px">
                     <mdui-button-icon
+                      @click="startEditContent(key)"
+                      :disabled="loading"
+                      title="编辑内容"
+                    >
+                      <mdui-icon-edit-note></mdui-icon-edit-note>
+                    </mdui-button-icon>
+
+                    <mdui-button-icon
                       @click="startEdit(key)"
                       :disabled="loading"
+                      title="编辑属性"
                     >
                       <mdui-icon-edit></mdui-icon-edit>
                     </mdui-button-icon>
@@ -107,6 +116,7 @@
                     <mdui-button-icon
                       @click="confirmDelete(key)"
                       :disabled="loading"
+                      title="删除"
                     >
                       <mdui-icon-delete></mdui-icon-delete>
                     </mdui-button-icon>
@@ -211,6 +221,14 @@
     >
   </mdui-dialog>
 
+  <!-- Key Content Edit Dialog -->
+  <KeyEditDialog
+    :open="!!editingContentKey"
+    :keyData="editingContentKey"
+    @closed="editingContentKey = null"
+    @updated="onContentUpdated"
+  />
+
   <!-- Snackbar for messages -->
   <mdui-snackbar :open="!!error" placement="top" closeable @closed="error = ''">
     {{ error }}
@@ -228,11 +246,13 @@
 
 <script setup lang="ts">
 import { api } from "@/api";
+import KeyEditDialog from "@/components/ui/KeyEditDialog.vue";
 import type { Key, KeyType } from "@/types";
 import { programsOf, songsOf } from "@/types";
 import "@mdui/icons/arrow-back.js";
 import "@mdui/icons/delete.js";
 import "@mdui/icons/drag-indicator.js";
+import "@mdui/icons/edit-note.js";
 import "@mdui/icons/edit.js";
 import "mdui/components/button-icon.js";
 import "mdui/components/button.js";
@@ -255,6 +275,9 @@ const loading = ref(false);
 const error = ref("");
 const successMessage = ref("");
 const drag = ref(false);
+
+// Content editing
+const editingContentKey = ref<Key | null>(null);
 
 // Drag options
 const dragOptions = computed(() => ({
@@ -370,6 +393,16 @@ async function executeDelete() {
   } finally {
     loading.value = false;
   }
+}
+
+function startEditContent(key: Key) {
+  editingContentKey.value = key;
+}
+
+async function onContentUpdated() {
+  successMessage.value = "内容已更新";
+  await loadKeys();
+  editingContentKey.value = null;
 }
 
 async function onDragEnd() {
