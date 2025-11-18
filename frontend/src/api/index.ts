@@ -213,6 +213,101 @@ export const api = {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
   },
+
+  // Reordering
+  async reorderPrograms(ids: number[]): Promise<void> {
+    const response = await fetch(`${API_BASE}/programs/reorder`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ ids }),
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+  },
+
+  async reorderLyrics(ids: number[]): Promise<void> {
+    const response = await fetch(`${API_BASE}/lyrics/reorder`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ ids }),
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+  },
+
+  // CSV Import/Export for Programs
+  async importProgramsCSV(keyId: number, csv: string): Promise<void> {
+    const response = await fetch(`${API_BASE}/keys/${keyId}/import-csv`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ csv }),
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+  },
+
+  async exportProgramsCSV(keyId: number): Promise<string> {
+    const response = await fetch(`${API_BASE}/keys/${keyId}/export-csv`);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const data = await response.json();
+    return data.csv;
+  },
+
+  // CSV Import/Export for Lyrics
+  async importLyricsCSV(songId: number, csv: string): Promise<void> {
+    const response = await fetch(`${API_BASE}/songs/${songId}/import-csv`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ csv }),
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+  },
+
+  async exportLyricsCSV(songId: number): Promise<string> {
+    const response = await fetch(`${API_BASE}/songs/${songId}/export-csv`);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const data = await response.json();
+    return data.csv;
+  },
+
+  // JSON Import/Export for Key
+  async importKeyJSON(keyId: number, data: Key): Promise<void> {
+    const response = await fetch(`${API_BASE}/keys/${keyId}/import-json`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+  },
+
+  async exportKeyJSON(keyId: number): Promise<Key> {
+    const response = await fetch(`${API_BASE}/keys/${keyId}/export-json`);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return response.json();
+  },
 };
 
 export function createWebSocket(onMessage: (data: Key[]) => void): WebSocket {

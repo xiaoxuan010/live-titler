@@ -118,6 +118,7 @@ func main() {
 	router.HandleFunc("/api/programs", createProgram).Methods("POST")
 	router.HandleFunc("/api/programs/{id}", updateProgram).Methods("PATCH")
 	router.HandleFunc("/api/programs/{id}", deleteProgram).Methods("DELETE")
+	router.HandleFunc("/api/programs/reorder", reorderPrograms).Methods("POST")
 
 	router.HandleFunc("/api/songs", createSong).Methods("POST")
 	router.HandleFunc("/api/songs/{id}", updateSong).Methods("PATCH")
@@ -126,6 +127,14 @@ func main() {
 	router.HandleFunc("/api/lyrics", createLyric).Methods("POST")
 	router.HandleFunc("/api/lyrics/{id}", updateLyric).Methods("PATCH")
 	router.HandleFunc("/api/lyrics/{id}", deleteLyric).Methods("DELETE")
+	router.HandleFunc("/api/lyrics/reorder", reorderLyrics).Methods("POST")
+
+	router.HandleFunc("/api/keys/{id}/import-csv", importProgramsCSV).Methods("POST")
+	router.HandleFunc("/api/keys/{id}/export-csv", exportProgramsCSV).Methods("GET")
+	router.HandleFunc("/api/songs/{id}/import-csv", importLyricsCSV).Methods("POST")
+	router.HandleFunc("/api/songs/{id}/export-csv", exportLyricsCSV).Methods("GET")
+	router.HandleFunc("/api/keys/{id}/import-json", importKeyJSON).Methods("POST")
+	router.HandleFunc("/api/keys/{id}/export-json", exportKeyJSON).Methods("GET")
 
 	router.HandleFunc("/ws", handleWebSocket)
 
